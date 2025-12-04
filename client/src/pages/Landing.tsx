@@ -382,14 +382,14 @@ export default function Landing() {
                 <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
                   <Button 
                     size="lg" 
-                    asChild 
                     className="px-8 py-6 text-base bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 border-0 shadow-xl shadow-violet-500/25" 
                     data-testid="button-view-works"
+                    onClick={() => {
+                      document.getElementById('works')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
                   >
-                    <a href="#works">
-                      Смотреть работы
-                      <ArrowDown className="ml-2 h-4 w-4" />
-                    </a>
+                    Смотреть работы
+                    <ArrowDown className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -439,7 +439,12 @@ export default function Landing() {
                   className="flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                   animate={{ y: [0, 6, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('works')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                 >
+                  <span className="text-xs font-medium">Листай</span>
                   <div className="w-5 h-8 rounded-full border-2 border-current flex items-start justify-center p-1.5">
                     <motion.div
                       className="w-1 h-2 rounded-full bg-current"
