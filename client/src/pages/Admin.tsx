@@ -149,7 +149,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -194,7 +194,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -220,7 +220,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -245,7 +245,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -271,7 +271,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       setLocalProjects(projects);
@@ -306,7 +306,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -340,7 +340,7 @@ export default function Admin() {
           description: "Пожалуйста, войдите снова.",
           variant: "destructive",
         });
-        window.location.href = "/api/login";
+        window.location.href = "/login";
         return;
       }
       toast({
@@ -520,7 +520,7 @@ export default function Admin() {
               Пожалуйста, войдите для доступа к панели администратора.
             </p>
             <Button asChild className="w-full" data-testid="button-login-admin">
-              <a href="/api/login">Войти через Replit</a>
+              <Link href="/login">Войти в портфолио</Link>
             </Button>
             <Button variant="outline" asChild className="w-full" data-testid="button-back-home">
               <Link href="/">На главную</Link>

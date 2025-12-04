@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./simpleAuth";
 import {
   ObjectStorageService,
   ObjectNotFoundError,
@@ -18,14 +18,12 @@ export async function registerRoutes(
   await setupAuth(app);
 
   // Auth routes
-  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+  app.get("/api/auth/user", (req: any, res) => {
+    const user = req.session?.user;
+    if (user && user.isAuthenticated) {
+      res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
     }
   });
 
@@ -79,7 +77,7 @@ export async function registerRoutes(
       return res.status(400).json({ error: "imageURL is required" });
     }
 
-    const userId = req.user?.claims?.sub;
+    const userId = req.session?.user?.id || "admin";
 
     try {
       const objectStorageService = new ObjectStorageService();
@@ -114,10 +112,8 @@ export async function registerRoutes(
   // All projects for admin (including unpublished)
   app.get("/api/admin/projects", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -145,16 +141,14 @@ export async function registerRoutes(
   // Project routes - protected (admin only)
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const validatedData = insertProjectSchema.parse({
         ...req.body,
-        userId,
+        userId: sessionUser.id,
       });
 
       const project = await storage.createProject(validatedData);
@@ -170,10 +164,8 @@ export async function registerRoutes(
 
   app.patch("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -190,10 +182,8 @@ export async function registerRoutes(
 
   app.delete("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -211,10 +201,8 @@ export async function registerRoutes(
   // Bulk update project order
   app.patch("/api/projects/reorder", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -248,10 +236,8 @@ export async function registerRoutes(
   // About content routes - admin only
   app.put("/api/about", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -285,10 +271,8 @@ export async function registerRoutes(
   // Contact message routes - admin only
   app.get("/api/admin/messages", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -302,10 +286,8 @@ export async function registerRoutes(
 
   app.patch("/api/admin/messages/:id/read", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -322,10 +304,8 @@ export async function registerRoutes(
 
   app.delete("/api/admin/messages/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -353,10 +333,8 @@ export async function registerRoutes(
 
   app.post("/api/projects/:id/images", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -378,10 +356,8 @@ export async function registerRoutes(
 
   app.delete("/api/project-images/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user?.isAdmin) {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
       }
 

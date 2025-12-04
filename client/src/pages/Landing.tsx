@@ -184,7 +184,7 @@ export default function Landing() {
             <ThemeToggle />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button size="sm" asChild className="ml-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 border-0" data-testid="button-login">
-                <a href="/api/login">Войти</a>
+                <Link href="/login">Войти в портфолио</Link>
               </Button>
             </motion.div>
           </nav>
