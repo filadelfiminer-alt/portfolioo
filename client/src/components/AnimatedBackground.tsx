@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 
-interface AnimatedBackgroundProps {
-  variant?: "gradient" | "aurora" | "mesh";
-}
-
-export function AnimatedBackground({ variant = "gradient" }: AnimatedBackgroundProps) {
+export function AnimatedBackground() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -13,223 +9,182 @@ export function AnimatedBackground({ variant = "gradient" }: AnimatedBackgroundP
 
   if (!mounted) return null;
 
-  if (variant === "aurora") {
-    return (
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="aurora-bg" />
-        <style>{`
-          .aurora-bg {
-            position: absolute;
-            inset: 0;
-            background: 
-              linear-gradient(125deg, 
-                #667eea 0%, 
-                #764ba2 25%, 
-                #f093fb 50%, 
-                #667eea 75%,
-                #764ba2 100%);
-            background-size: 400% 400%;
-            animation: aurora-shift 15s ease infinite;
-            opacity: 0.4;
-          }
-          
-          .dark .aurora-bg {
-            opacity: 0.25;
-          }
-          
-          @keyframes aurora-shift {
-            0%, 100% { background-position: 0% 50%; }
-            25% { background-position: 100% 50%; }
-            50% { background-position: 100% 100%; }
-            75% { background-position: 0% 100%; }
-          }
-        `}</style>
-        
-        <div className="aurora-orb aurora-orb-1" />
-        <div className="aurora-orb aurora-orb-2" />
-        <div className="aurora-orb aurora-orb-3" />
-        <style>{`
-          .aurora-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.5;
-            will-change: transform;
-          }
-          
-          .dark .aurora-orb {
-            opacity: 0.3;
-          }
-          
-          .aurora-orb-1 {
-            width: 50vw;
-            height: 50vw;
-            top: -10%;
-            left: -10%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            animation: float-1 20s ease-in-out infinite;
-          }
-          
-          .aurora-orb-2 {
-            width: 40vw;
-            height: 40vw;
-            bottom: -5%;
-            right: -5%;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            animation: float-2 25s ease-in-out infinite;
-          }
-          
-          .aurora-orb-3 {
-            width: 35vw;
-            height: 35vw;
-            top: 40%;
-            left: 30%;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            animation: float-3 18s ease-in-out infinite;
-          }
-          
-          @keyframes float-1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(5vw, 3vw) scale(1.1); }
-            66% { transform: translate(-3vw, 5vw) scale(0.95); }
-          }
-          
-          @keyframes float-2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(-4vw, -3vw) scale(1.05); }
-            66% { transform: translate(3vw, -4vw) scale(1.1); }
-          }
-          
-          @keyframes float-3 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(3vw, -3vw) scale(1.15); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  if (variant === "mesh") {
-    return (
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="mesh-gradient" />
-        <style>{`
-          .mesh-gradient {
-            position: absolute;
-            inset: 0;
-            background: 
-              radial-gradient(at 40% 20%, #667eea 0px, transparent 50%),
-              radial-gradient(at 80% 0%, #764ba2 0px, transparent 50%),
-              radial-gradient(at 0% 50%, #4facfe 0px, transparent 50%),
-              radial-gradient(at 80% 50%, #f093fb 0px, transparent 50%),
-              radial-gradient(at 0% 100%, #667eea 0px, transparent 50%),
-              radial-gradient(at 80% 100%, #00f2fe 0px, transparent 50%);
-            opacity: 0.4;
-            animation: mesh-move 30s ease infinite;
-          }
-          
-          .dark .mesh-gradient {
-            opacity: 0.2;
-          }
-          
-          @keyframes mesh-move {
-            0%, 100% { 
-              background-position: 0% 0%, 100% 0%, 0% 50%, 100% 50%, 0% 100%, 100% 100%; 
-            }
-            50% { 
-              background-position: 100% 0%, 0% 0%, 100% 50%, 0% 50%, 100% 100%, 0% 100%; 
-            }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      <div className="gradient-flow" />
-      <style>{`
-        .gradient-flow {
-          position: absolute;
-          inset: -50%;
-          width: 200%;
-          height: 200%;
-          background: conic-gradient(
-            from 0deg at 50% 50%,
-            #667eea 0deg,
-            #764ba2 60deg,
-            #f093fb 120deg,
-            #f5576c 180deg,
-            #4facfe 240deg,
-            #00f2fe 300deg,
-            #667eea 360deg
-          );
-          animation: rotate-gradient 20s linear infinite;
-          opacity: 0.3;
-          filter: blur(100px);
-        }
-        
-        .dark .gradient-flow {
-          opacity: 0.15;
-        }
-        
-        @keyframes rotate-gradient {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Base gradient layer - always visible */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-500/20 dark:from-violet-600/30 dark:via-fuchsia-600/25 dark:to-cyan-600/30" />
       
-      <div className="glow-orb glow-1" />
-      <div className="glow-orb glow-2" />
+      {/* Animated gradient orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      <div className="orb orb-3" />
+      <div className="orb orb-4" />
+      
+      {/* Floating particles */}
+      <div className="particles">
+        {[...Array(20)].map((_, i) => (
+          <div key={i} className={`particle particle-${i + 1}`} />
+        ))}
+      </div>
+      
+      {/* Grid overlay */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] dark:opacity-[0.05]" />
+      
       <style>{`
-        .glow-orb {
+        .orb {
           position: absolute;
           border-radius: 50%;
-          filter: blur(60px);
+          filter: blur(80px);
           will-change: transform;
+          pointer-events: none;
         }
         
-        .glow-1 {
-          width: 40vw;
-          height: 40vw;
-          top: 10%;
-          left: 20%;
-          background: linear-gradient(135deg, #667eea, #764ba2);
+        .orb-1 {
+          width: 600px;
+          height: 600px;
+          top: -200px;
+          left: -100px;
+          background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
+          opacity: 0.6;
+          animation: float-orb-1 25s ease-in-out infinite;
+        }
+        
+        .dark .orb-1 {
+          opacity: 0.4;
+        }
+        
+        .orb-2 {
+          width: 500px;
+          height: 500px;
+          bottom: -150px;
+          right: -100px;
+          background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 50%, #67e8f9 100%);
           opacity: 0.5;
-          animation: pulse-1 8s ease-in-out infinite;
+          animation: float-orb-2 30s ease-in-out infinite;
         }
         
-        .dark .glow-1 {
+        .dark .orb-2 {
+          opacity: 0.35;
+        }
+        
+        .orb-3 {
+          width: 400px;
+          height: 400px;
+          top: 40%;
+          left: 50%;
+          background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%);
+          opacity: 0.4;
+          animation: float-orb-3 20s ease-in-out infinite;
+        }
+        
+        .dark .orb-3 {
+          opacity: 0.3;
+        }
+        
+        .orb-4 {
+          width: 350px;
+          height: 350px;
+          top: 20%;
+          right: 20%;
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+          opacity: 0.35;
+          animation: float-orb-4 22s ease-in-out infinite;
+        }
+        
+        .dark .orb-4 {
           opacity: 0.25;
         }
         
-        .glow-2 {
-          width: 35vw;
-          height: 35vw;
-          bottom: 20%;
-          right: 15%;
-          background: linear-gradient(135deg, #4facfe, #00f2fe);
+        @keyframes float-orb-1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(80px, 40px) scale(1.1); }
+          50% { transform: translate(40px, 80px) scale(0.95); }
+          75% { transform: translate(-40px, 40px) scale(1.05); }
+        }
+        
+        @keyframes float-orb-2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(-60px, -40px) scale(1.05); }
+          50% { transform: translate(-80px, -80px) scale(1.1); }
+          75% { transform: translate(-30px, -60px) scale(0.95); }
+        }
+        
+        @keyframes float-orb-3 {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          33% { transform: translate(-40%, -60%) scale(1.15); }
+          66% { transform: translate(-60%, -40%) scale(0.9); }
+        }
+        
+        @keyframes float-orb-4 {
+          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+          50% { transform: translate(-50px, 50px) scale(1.1) rotate(10deg); }
+        }
+        
+        .particles {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+        }
+        
+        .particle {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+          border-radius: 50%;
+          opacity: 0.6;
+          animation: float-particle 15s ease-in-out infinite;
+        }
+        
+        .dark .particle {
           opacity: 0.4;
-          animation: pulse-2 10s ease-in-out infinite;
         }
         
-        .dark .glow-2 {
-          opacity: 0.2;
+        .particle-1 { left: 10%; top: 20%; animation-delay: 0s; animation-duration: 18s; }
+        .particle-2 { left: 20%; top: 80%; animation-delay: -2s; animation-duration: 22s; }
+        .particle-3 { left: 30%; top: 40%; animation-delay: -4s; animation-duration: 16s; }
+        .particle-4 { left: 40%; top: 60%; animation-delay: -6s; animation-duration: 20s; }
+        .particle-5 { left: 50%; top: 30%; animation-delay: -8s; animation-duration: 24s; }
+        .particle-6 { left: 60%; top: 70%; animation-delay: -10s; animation-duration: 19s; }
+        .particle-7 { left: 70%; top: 50%; animation-delay: -12s; animation-duration: 21s; }
+        .particle-8 { left: 80%; top: 25%; animation-delay: -14s; animation-duration: 17s; }
+        .particle-9 { left: 90%; top: 85%; animation-delay: -1s; animation-duration: 23s; }
+        .particle-10 { left: 15%; top: 55%; animation-delay: -3s; animation-duration: 25s; }
+        .particle-11 { left: 25%; top: 15%; animation-delay: -5s; animation-duration: 18s; }
+        .particle-12 { left: 35%; top: 75%; animation-delay: -7s; animation-duration: 20s; }
+        .particle-13 { left: 45%; top: 45%; animation-delay: -9s; animation-duration: 16s; }
+        .particle-14 { left: 55%; top: 90%; animation-delay: -11s; animation-duration: 22s; }
+        .particle-15 { left: 65%; top: 35%; animation-delay: -13s; animation-duration: 19s; }
+        .particle-16 { left: 75%; top: 65%; animation-delay: -15s; animation-duration: 21s; }
+        .particle-17 { left: 85%; top: 10%; animation-delay: -2s; animation-duration: 17s; }
+        .particle-18 { left: 95%; top: 50%; animation-delay: -4s; animation-duration: 24s; }
+        .particle-19 { left: 5%; top: 95%; animation-delay: -6s; animation-duration: 20s; }
+        .particle-20 { left: 50%; top: 5%; animation-delay: -8s; animation-duration: 18s; }
+        
+        @keyframes float-particle {
+          0%, 100% { 
+            transform: translate(0, 0) scale(1);
+            opacity: 0.6;
+          }
+          25% { 
+            transform: translate(30px, -40px) scale(1.5);
+            opacity: 0.8;
+          }
+          50% { 
+            transform: translate(-20px, -80px) scale(1);
+            opacity: 0.4;
+          }
+          75% { 
+            transform: translate(40px, -40px) scale(1.3);
+            opacity: 0.7;
+          }
         }
         
-        @keyframes pulse-1 {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.1); opacity: 0.6; }
-        }
-        
-        .dark @keyframes pulse-1 {
-          0%, 100% { transform: scale(1); opacity: 0.25; }
-          50% { transform: scale(1.1); opacity: 0.35; }
-        }
-        
-        @keyframes pulse-2 {
-          0%, 100% { transform: scale(1); opacity: 0.4; }
-          50% { transform: scale(1.15); opacity: 0.5; }
+        .bg-grid-pattern {
+          background-image: 
+            linear-gradient(rgba(139, 92, 246, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
+          background-size: 50px 50px;
         }
       `}</style>
     </div>
