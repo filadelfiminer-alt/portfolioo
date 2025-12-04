@@ -16,12 +16,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
+import {
+  CreativeSparkIcon,
+  ContactEnvelopeIcon,
+  UserProfileIcon,
+} from "@/components/CustomIcons";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import {
-  Sparkles,
   Send,
   ArrowLeft,
   CheckCircle,
@@ -33,10 +38,10 @@ import {
 import type { About } from "@shared/schema";
 
 const contactFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email"),
+  name: z.string().min(2, "Имя должно содержать минимум 2 символа"),
+  email: z.string().email("Введите корректный email"),
   subject: z.string().optional(),
-  message: z.string().min(10, "Message must be at least 10 characters"),
+  message: z.string().min(10, "Сообщение должно содержать минимум 10 символов"),
 });
 
 type ContactFormData = z.infer<typeof contactFormSchema>;
@@ -69,8 +74,8 @@ export default function ContactPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: "Ошибка",
+        description: "Не удалось отправить сообщение. Попробуйте позже.",
         variant: "destructive",
       });
     },
@@ -81,20 +86,29 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedBackground variant="aurora" intensity="subtle" interactive />
+
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <span className="font-bold text-xl">Portfolio</span>
+            <Link href="/" className="flex items-center gap-3 group">
+              <motion.div
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
+                <CreativeSparkIcon className="h-7 w-7 text-primary" size={28} />
+              </motion.div>
+              <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                Портфолио
+              </span>
             </Link>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <Link href="/gallery">
-              <Button variant="ghost" size="sm" data-testid="button-back-gallery">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Gallery
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-back-gallery">
+                <ArrowLeft className="h-4 w-4" />
+                Галерея
               </Button>
             </Link>
             <ThemeToggle />
@@ -102,26 +116,27 @@ export default function ContactPage() {
         </div>
       </header>
 
-      <main className="pt-24 pb-16">
+      <main className="pt-24 pb-16 relative z-10">
         <div className="container mx-auto px-4 max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="text-center mb-10">
+            <div className="text-center mb-12">
               <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-4"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
               >
-                <MessageSquare className="h-4 w-4" />
-                <span className="text-sm font-medium">Get in Touch</span>
+                <ContactEnvelopeIcon size={20} className="text-primary" />
+                <span className="text-sm font-medium text-primary">Связаться со мной</span>
               </motion.div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">Contact Me</h1>
-              <p className="text-muted-foreground text-lg max-w-lg mx-auto">
-                Have a question or want to work together? Send me a message and I'll get back to you as soon as possible.
+              
+              <h1 className="text-4xl md:text-5xl font-bold mb-4 gradient-text">Контакты</h1>
+              <p className="text-muted-foreground text-lg max-w-lg mx-auto leading-relaxed">
+                Есть вопрос или хотите сотрудничать? Напишите мне, и я отвечу в ближайшее время.
               </p>
             </div>
 
@@ -130,30 +145,38 @@ export default function ContactPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <Card>
+                <Card className="glass-card border-green-500/20">
                   <CardContent className="pt-12 pb-12 text-center">
-                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <CheckCircle className="h-8 w-8 text-green-500" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2">Message Sent!</h2>
-                    <p className="text-muted-foreground mb-6">
-                      Thank you for reaching out. I'll get back to you soon.
+                    <motion.div 
+                      className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/20 flex items-center justify-center"
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    >
+                      <CheckCircle className="h-10 w-10 text-green-500" />
+                    </motion.div>
+                    <h2 className="text-2xl font-bold mb-3">Сообщение отправлено!</h2>
+                    <p className="text-muted-foreground mb-8 text-lg">
+                      Спасибо за ваше сообщение. Я свяжусь с вами в ближайшее время.
                     </p>
-                    <Button onClick={() => setSubmitted(false)} variant="outline" data-testid="button-send-another">
-                      Send Another Message
+                    <Button onClick={() => setSubmitted(false)} variant="outline" className="gap-2" data-testid="button-send-another">
+                      <MessageSquare className="h-4 w-4" />
+                      Отправить ещё
                     </Button>
                   </CardContent>
                 </Card>
               </motion.div>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Send a Message</CardTitle>
-                  <CardDescription>
-                    Fill out the form below and I'll respond as soon as I can.
+              <Card className="glass-card">
+                <CardHeader className="text-center pb-2">
+                  <CardTitle className="text-2xl flex items-center justify-center gap-3">
+                    <MessageSquare className="h-6 w-6 text-primary" />
+                    Отправить сообщение
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Заполните форму ниже, и я отвечу как можно скорее.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                       <div className="grid md:grid-cols-2 gap-4">
@@ -163,12 +186,13 @@ export default function ContactPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                Name
+                                <User className="h-4 w-4 text-primary" />
+                                Имя
                               </FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Your name"
+                                  placeholder="Ваше имя"
+                                  className="bg-background/50"
                                   {...field}
                                   data-testid="input-contact-name"
                                 />
@@ -184,13 +208,14 @@ export default function ContactPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="flex items-center gap-2">
-                                <Mail className="h-4 w-4" />
+                                <Mail className="h-4 w-4 text-primary" />
                                 Email
                               </FormLabel>
                               <FormControl>
                                 <Input
                                   type="email"
-                                  placeholder="your@email.com"
+                                  placeholder="ваш@email.com"
+                                  className="bg-background/50"
                                   {...field}
                                   data-testid="input-contact-email"
                                 />
@@ -206,10 +231,11 @@ export default function ContactPage() {
                         name="subject"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Subject (Optional)</FormLabel>
+                            <FormLabel>Тема (необязательно)</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="What's this about?"
+                                placeholder="О чём ваше сообщение?"
+                                className="bg-background/50"
                                 {...field}
                                 data-testid="input-contact-subject"
                               />
@@ -225,13 +251,14 @@ export default function ContactPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center gap-2">
-                              <MessageSquare className="h-4 w-4" />
-                              Message
+                              <MessageSquare className="h-4 w-4 text-primary" />
+                              Сообщение
                             </FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Tell me about your project or question..."
+                                placeholder="Расскажите о вашем проекте или идее..."
                                 rows={6}
+                                className="bg-background/50 resize-none"
                                 {...field}
                                 data-testid="input-contact-message"
                               />
@@ -243,19 +270,20 @@ export default function ContactPage() {
 
                       <Button
                         type="submit"
-                        className="w-full"
+                        className="w-full glass-button text-primary-foreground gap-2"
+                        size="lg"
                         disabled={submitMutation.isPending}
                         data-testid="button-submit-contact"
                       >
                         {submitMutation.isPending ? (
                           <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Sending...
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Отправка...
                           </>
                         ) : (
                           <>
-                            <Send className="h-4 w-4 mr-2" />
-                            Send Message
+                            <Send className="h-5 w-5" />
+                            Отправить сообщение
                           </>
                         )}
                       </Button>

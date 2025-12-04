@@ -6,8 +6,16 @@ import { ProjectCard } from "@/components/ProjectCard";
 import { ProjectModal } from "@/components/ProjectModal";
 import { TagFilter } from "@/components/TagFilter";
 import { PDFDownloadButton } from "@/components/PDFDownloadButton";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { 
+  CreativeSparkIcon, 
+  PortfolioIcon,
+  UserProfileIcon,
+  ContactEnvelopeIcon,
+  SettingsGearIcon,
+} from "@/components/CustomIcons";
 import { useAuth } from "@/hooks/useAuth";
-import { Sparkles, Settings, LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import type { Project, About } from "@shared/schema";
@@ -41,63 +49,86 @@ export default function Home() {
   }, [projects, selectedTag]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedBackground variant="aurora" intensity="medium" interactive />
+
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">Portfolio</span>
+          <Link href="/" className="flex items-center gap-3 group">
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.6 }}
+            >
+              <CreativeSparkIcon className="h-7 w-7 text-primary" size={28} />
+            </motion.div>
+            <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Портфолио
+            </span>
           </Link>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link href="/about">
-              <Button variant="ghost" size="sm" data-testid="button-nav-about">
-                About
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-nav-about">
+                <UserProfileIcon size={18} animate={false} />
+                Обо мне
               </Button>
             </Link>
             <Link href="/contact">
-              <Button variant="ghost" size="sm" data-testid="button-nav-contact">
-                Contact
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-nav-contact">
+                <ContactEnvelopeIcon size={18} animate={false} />
+                Контакты
               </Button>
             </Link>
             <PDFDownloadButton
               projects={filteredProjects}
               aboutContent={aboutContent}
-              ownerName={aboutContent?.title || "Portfolio"}
+              ownerName={aboutContent?.title || "Портфолио"}
               variant="ghost"
               size="sm"
             />
             <ThemeToggle />
             {user?.isAdmin && (
               <Link href="/admin">
-                <Button variant="outline" size="sm" data-testid="button-admin">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Manage
+                <Button variant="outline" size="sm" className="gap-2 glass-button text-primary-foreground" data-testid="button-admin">
+                  <SettingsGearIcon size={16} animate={false} />
+                  Управление
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="sm" asChild data-testid="button-logout">
+            <Button variant="ghost" size="sm" asChild className="gap-2" data-testid="button-logout">
               <a href="/api/logout">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <LogOut className="h-4 w-4" />
+                Выйти
               </a>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="pt-16">
-        <section className="py-16 md:py-24">
+      <main className="pt-16 relative z-10">
+        <section className="py-20 md:py-32">
           <div className="container mx-auto px-4">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-3xl"
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="max-w-4xl"
             >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                My Work
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6"
+              >
+                <PortfolioIcon size={20} className="text-primary" />
+                <span className="text-sm font-medium text-primary">Творческие работы</span>
+              </motion.div>
+              
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+                <span className="gradient-text">Мои работы</span>
               </h1>
-              <p className="text-xl text-muted-foreground">
-                A collection of my creative projects and professional work.
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl leading-relaxed">
+                Коллекция моих творческих проектов и профессиональных работ. 
+                Каждый проект — это уникальная история и новый опыт.
               </p>
             </motion.div>
           </div>
@@ -111,30 +142,39 @@ export default function Home() {
           />
         )}
 
-        <section className="py-12">
+        <section className="py-12 pb-24">
           <div className="container mx-auto px-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <Loader2 className="h-10 w-10 text-primary" />
+                </motion.div>
               </div>
             ) : filteredProjects.length === 0 ? (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 className="text-center py-20"
               >
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-                  <Sparkles className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">No projects yet</h3>
-                <p className="text-muted-foreground mb-6">
+                <motion.div 
+                  className="w-24 h-24 mx-auto mb-8 rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center pulse-glow"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <CreativeSparkIcon className="h-12 w-12 text-primary" size={48} />
+                </motion.div>
+                <h3 className="text-2xl font-bold mb-3">Проектов пока нет</h3>
+                <p className="text-muted-foreground mb-8 text-lg">
                   {user?.isAdmin
-                    ? "Start by adding your first project"
-                    : "Check back later for new work"}
+                    ? "Добавьте свой первый проект"
+                    : "Скоро здесь появятся удивительные работы"}
                 </p>
                 {user?.isAdmin && (
-                  <Button asChild data-testid="button-add-first-project">
-                    <Link href="/admin">Add Project</Link>
+                  <Button asChild size="lg" className="glass-button text-primary-foreground" data-testid="button-add-first-project">
+                    <Link href="/admin">Добавить проект</Link>
                   </Button>
                 )}
               </motion.div>
@@ -142,10 +182,11 @@ export default function Home() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={selectedTag || "all"}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                  className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
                 >
                   {filteredProjects.map((project, index) => (
                     <ProjectCard
@@ -168,9 +209,17 @@ export default function Home() {
         onClose={() => setSelectedProject(null)}
       />
 
-      <footer className="border-t py-8 mt-12">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Creative Portfolio</p>
+      <footer className="border-t border-border/50 py-10 mt-12 bg-background/50 backdrop-blur-sm relative z-10">
+        <div className="container mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex items-center justify-center gap-2 text-muted-foreground"
+          >
+            <CreativeSparkIcon size={20} className="text-primary" />
+            <span className="font-medium">Творческое Портфолио</span>
+          </motion.div>
         </div>
       </footer>
     </div>
