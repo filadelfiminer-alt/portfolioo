@@ -489,23 +489,19 @@ export default function Landing() {
                   <div className="absolute left-0 top-0 bottom-0 w-20 md:w-40 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
                   <div className="absolute right-0 top-0 bottom-0 w-20 md:w-40 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
                   
-                  {/* Scrolling track */}
-                  <motion.div
-                    className="flex gap-6"
-                    animate={{ x: [0, -1920] }}
-                    transition={{
-                      x: {
-                        duration: 25,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }
+                  {/* Scrolling track with CSS animation */}
+                  <div 
+                    className="flex gap-6 animate-scroll-infinite"
+                    style={{
+                      width: "max-content"
                     }}
                   >
-                    {/* Duplicate projects for seamless loop */}
-                    {[...publishedProjects, ...publishedProjects, ...publishedProjects].map((project, i) => (
+                    {/* Duplicate projects twice for seamless loop */}
+                    {[...publishedProjects, ...publishedProjects].map((project, i) => (
                       <motion.div
                         key={`${project.id}-${i}`}
-                        whileHover={{ y: -10, scale: 1.02 }}
+                        whileHover={{ y: -8, scale: 1.02 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
                         className="group relative flex-shrink-0 w-[320px] md:w-[380px] bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 cursor-pointer"
                         onClick={() => window.location.href = '/gallery'}
                       >
@@ -550,7 +546,7 @@ export default function Landing() {
                         </motion.div>
                       </motion.div>
                     ))}
-                  </motion.div>
+                  </div>
                 </div>
               </>
             ) : (
