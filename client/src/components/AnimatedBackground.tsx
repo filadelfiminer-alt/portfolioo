@@ -11,30 +11,82 @@ export function AnimatedBackground() {
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Base gradient layer - always visible */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-500/20 dark:from-violet-600/30 dark:via-fuchsia-600/25 dark:to-cyan-600/30" />
+      {/* Main gradient base */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/30 via-fuchsia-500/20 to-purple-600/30 dark:from-violet-900/50 dark:via-fuchsia-800/30 dark:to-purple-900/50" />
       
-      {/* Animated gradient orbs */}
+      {/* Animated mesh gradient */}
+      <div className="mesh-bg" />
+      
+      {/* Large floating orbs */}
       <div className="orb orb-1" />
       <div className="orb orb-2" />
       <div className="orb orb-3" />
       <div className="orb orb-4" />
+      <div className="orb orb-5" />
+      
+      {/* Glowing lines */}
+      <div className="glow-line glow-line-1" />
+      <div className="glow-line glow-line-2" />
+      <div className="glow-line glow-line-3" />
       
       {/* Floating particles */}
-      <div className="particles">
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className={`particle particle-${i + 1}`} />
+      <div className="particles-container">
+        {[...Array(30)].map((_, i) => (
+          <div key={i} className={`particle particle-${(i % 10) + 1}`} style={{
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 10}s`,
+            animationDuration: `${15 + Math.random() * 20}s`
+          }} />
         ))}
       </div>
       
-      {/* Grid overlay */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] dark:opacity-[0.05]" />
+      {/* Noise texture overlay */}
+      <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.03] bg-noise" />
       
       <style>{`
+        .mesh-bg {
+          position: absolute;
+          inset: 0;
+          background: 
+            radial-gradient(ellipse 80% 50% at 20% 40%, rgba(139, 92, 246, 0.4), transparent 50%),
+            radial-gradient(ellipse 60% 60% at 80% 20%, rgba(217, 70, 239, 0.35), transparent 50%),
+            radial-gradient(ellipse 70% 70% at 50% 80%, rgba(168, 85, 247, 0.3), transparent 50%),
+            radial-gradient(ellipse 50% 80% at 90% 60%, rgba(139, 92, 246, 0.25), transparent 50%);
+          animation: mesh-shift 20s ease-in-out infinite;
+        }
+        
+        .dark .mesh-bg {
+          background: 
+            radial-gradient(ellipse 80% 50% at 20% 40%, rgba(139, 92, 246, 0.5), transparent 50%),
+            radial-gradient(ellipse 60% 60% at 80% 20%, rgba(217, 70, 239, 0.45), transparent 50%),
+            radial-gradient(ellipse 70% 70% at 50% 80%, rgba(168, 85, 247, 0.4), transparent 50%),
+            radial-gradient(ellipse 50% 80% at 90% 60%, rgba(139, 92, 246, 0.35), transparent 50%);
+        }
+        
+        @keyframes mesh-shift {
+          0%, 100% { 
+            transform: translate(0, 0) rotate(0deg);
+            filter: hue-rotate(0deg);
+          }
+          25% { 
+            transform: translate(2%, -2%) rotate(1deg);
+            filter: hue-rotate(10deg);
+          }
+          50% { 
+            transform: translate(-1%, 2%) rotate(-1deg);
+            filter: hue-rotate(-5deg);
+          }
+          75% { 
+            transform: translate(-2%, -1%) rotate(0.5deg);
+            filter: hue-rotate(5deg);
+          }
+        }
+        
         .orb {
           position: absolute;
           border-radius: 50%;
-          filter: blur(80px);
+          filter: blur(60px);
           will-change: transform;
           pointer-events: none;
         }
@@ -42,85 +94,135 @@ export function AnimatedBackground() {
         .orb-1 {
           width: 600px;
           height: 600px;
-          top: -200px;
-          left: -100px;
-          background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #d946ef 100%);
-          opacity: 0.6;
-          animation: float-orb-1 25s ease-in-out infinite;
-        }
-        
-        .dark .orb-1 {
-          opacity: 0.4;
+          top: -15%;
+          left: -10%;
+          background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(139, 92, 246, 0) 70%);
+          animation: float-1 20s ease-in-out infinite;
         }
         
         .orb-2 {
           width: 500px;
           height: 500px;
-          bottom: -150px;
-          right: -100px;
-          background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 50%, #67e8f9 100%);
-          opacity: 0.5;
-          animation: float-orb-2 30s ease-in-out infinite;
-        }
-        
-        .dark .orb-2 {
-          opacity: 0.35;
+          bottom: -10%;
+          right: -5%;
+          background: radial-gradient(circle, rgba(217, 70, 239, 0.7) 0%, rgba(217, 70, 239, 0) 70%);
+          animation: float-2 25s ease-in-out infinite;
         }
         
         .orb-3 {
           width: 400px;
           height: 400px;
-          top: 40%;
-          left: 50%;
-          background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%);
-          opacity: 0.4;
-          animation: float-orb-3 20s ease-in-out infinite;
-        }
-        
-        .dark .orb-3 {
-          opacity: 0.3;
+          top: 50%;
+          left: 40%;
+          background: radial-gradient(circle, rgba(168, 85, 247, 0.6) 0%, rgba(168, 85, 247, 0) 70%);
+          animation: float-3 18s ease-in-out infinite;
         }
         
         .orb-4 {
           width: 350px;
           height: 350px;
           top: 20%;
-          right: 20%;
-          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
-          opacity: 0.35;
-          animation: float-orb-4 22s ease-in-out infinite;
+          right: 15%;
+          background: radial-gradient(circle, rgba(192, 132, 252, 0.5) 0%, rgba(192, 132, 252, 0) 70%);
+          animation: float-4 22s ease-in-out infinite;
         }
         
-        .dark .orb-4 {
-          opacity: 0.25;
+        .orb-5 {
+          width: 300px;
+          height: 300px;
+          bottom: 30%;
+          left: 20%;
+          background: radial-gradient(circle, rgba(236, 72, 153, 0.4) 0%, rgba(236, 72, 153, 0) 70%);
+          animation: float-5 28s ease-in-out infinite;
         }
         
-        @keyframes float-orb-1 {
+        .dark .orb-1 { opacity: 0.7; }
+        .dark .orb-2 { opacity: 0.6; }
+        .dark .orb-3 { opacity: 0.5; }
+        .dark .orb-4 { opacity: 0.5; }
+        .dark .orb-5 { opacity: 0.4; }
+        
+        @keyframes float-1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(80px, 40px) scale(1.1); }
-          50% { transform: translate(40px, 80px) scale(0.95); }
-          75% { transform: translate(-40px, 40px) scale(1.05); }
+          25% { transform: translate(60px, 40px) scale(1.1); }
+          50% { transform: translate(30px, 80px) scale(0.95); }
+          75% { transform: translate(-30px, 40px) scale(1.05); }
         }
         
-        @keyframes float-orb-2 {
+        @keyframes float-2 {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(-60px, -40px) scale(1.05); }
-          50% { transform: translate(-80px, -80px) scale(1.1); }
-          75% { transform: translate(-30px, -60px) scale(0.95); }
+          33% { transform: translate(-50px, -40px) scale(1.1); }
+          66% { transform: translate(-80px, -20px) scale(0.9); }
         }
         
-        @keyframes float-orb-3 {
+        @keyframes float-3 {
           0%, 100% { transform: translate(-50%, -50%) scale(1); }
-          33% { transform: translate(-40%, -60%) scale(1.15); }
-          66% { transform: translate(-60%, -40%) scale(0.9); }
+          50% { transform: translate(-40%, -60%) scale(1.2); }
         }
         
-        @keyframes float-orb-4 {
+        @keyframes float-4 {
           0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          50% { transform: translate(-50px, 50px) scale(1.1) rotate(10deg); }
+          50% { transform: translate(-40px, 60px) scale(1.15) rotate(10deg); }
         }
         
-        .particles {
+        @keyframes float-5 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(50px, -30px) scale(1.1); }
+          66% { transform: translate(-30px, -50px) scale(0.95); }
+        }
+        
+        .glow-line {
+          position: absolute;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.8), rgba(217, 70, 239, 0.8), transparent);
+          filter: blur(1px);
+          opacity: 0.6;
+        }
+        
+        .dark .glow-line {
+          opacity: 0.8;
+        }
+        
+        .glow-line-1 {
+          width: 40%;
+          top: 30%;
+          left: 10%;
+          transform: rotate(-15deg);
+          animation: line-float-1 12s ease-in-out infinite;
+        }
+        
+        .glow-line-2 {
+          width: 30%;
+          top: 60%;
+          right: 15%;
+          transform: rotate(20deg);
+          animation: line-float-2 15s ease-in-out infinite;
+        }
+        
+        .glow-line-3 {
+          width: 25%;
+          bottom: 25%;
+          left: 30%;
+          transform: rotate(-5deg);
+          animation: line-float-3 18s ease-in-out infinite;
+        }
+        
+        @keyframes line-float-1 {
+          0%, 100% { transform: rotate(-15deg) translateY(0); opacity: 0.6; }
+          50% { transform: rotate(-10deg) translateY(-30px); opacity: 0.9; }
+        }
+        
+        @keyframes line-float-2 {
+          0%, 100% { transform: rotate(20deg) translateX(0); opacity: 0.5; }
+          50% { transform: rotate(25deg) translateX(40px); opacity: 0.8; }
+        }
+        
+        @keyframes line-float-3 {
+          0%, 100% { transform: rotate(-5deg) translate(0, 0); opacity: 0.4; }
+          50% { transform: rotate(0deg) translate(20px, -20px); opacity: 0.7; }
+        }
+        
+        .particles-container {
           position: absolute;
           inset: 0;
           overflow: hidden;
@@ -130,61 +232,45 @@ export function AnimatedBackground() {
           position: absolute;
           width: 4px;
           height: 4px;
-          background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+          background: radial-gradient(circle, rgba(168, 85, 247, 0.9) 0%, rgba(168, 85, 247, 0) 70%);
           border-radius: 50%;
-          opacity: 0.6;
-          animation: float-particle 15s ease-in-out infinite;
+          animation: particle-float 20s ease-in-out infinite;
         }
         
-        .dark .particle {
-          opacity: 0.4;
-        }
+        .particle-1 { background: radial-gradient(circle, rgba(139, 92, 246, 0.9) 0%, transparent 70%); width: 6px; height: 6px; }
+        .particle-2 { background: radial-gradient(circle, rgba(217, 70, 239, 0.8) 0%, transparent 70%); width: 5px; height: 5px; }
+        .particle-3 { background: radial-gradient(circle, rgba(168, 85, 247, 0.9) 0%, transparent 70%); width: 4px; height: 4px; }
+        .particle-4 { background: radial-gradient(circle, rgba(192, 132, 252, 0.8) 0%, transparent 70%); width: 6px; height: 6px; }
+        .particle-5 { background: radial-gradient(circle, rgba(236, 72, 153, 0.7) 0%, transparent 70%); width: 5px; height: 5px; }
+        .particle-6 { background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, transparent 70%); width: 4px; height: 4px; }
+        .particle-7 { background: radial-gradient(circle, rgba(217, 70, 239, 0.9) 0%, transparent 70%); width: 7px; height: 7px; }
+        .particle-8 { background: radial-gradient(circle, rgba(168, 85, 247, 0.7) 0%, transparent 70%); width: 5px; height: 5px; }
+        .particle-9 { background: radial-gradient(circle, rgba(192, 132, 252, 0.9) 0%, transparent 70%); width: 4px; height: 4px; }
+        .particle-10 { background: radial-gradient(circle, rgba(236, 72, 153, 0.8) 0%, transparent 70%); width: 6px; height: 6px; }
         
-        .particle-1 { left: 10%; top: 20%; animation-delay: 0s; animation-duration: 18s; }
-        .particle-2 { left: 20%; top: 80%; animation-delay: -2s; animation-duration: 22s; }
-        .particle-3 { left: 30%; top: 40%; animation-delay: -4s; animation-duration: 16s; }
-        .particle-4 { left: 40%; top: 60%; animation-delay: -6s; animation-duration: 20s; }
-        .particle-5 { left: 50%; top: 30%; animation-delay: -8s; animation-duration: 24s; }
-        .particle-6 { left: 60%; top: 70%; animation-delay: -10s; animation-duration: 19s; }
-        .particle-7 { left: 70%; top: 50%; animation-delay: -12s; animation-duration: 21s; }
-        .particle-8 { left: 80%; top: 25%; animation-delay: -14s; animation-duration: 17s; }
-        .particle-9 { left: 90%; top: 85%; animation-delay: -1s; animation-duration: 23s; }
-        .particle-10 { left: 15%; top: 55%; animation-delay: -3s; animation-duration: 25s; }
-        .particle-11 { left: 25%; top: 15%; animation-delay: -5s; animation-duration: 18s; }
-        .particle-12 { left: 35%; top: 75%; animation-delay: -7s; animation-duration: 20s; }
-        .particle-13 { left: 45%; top: 45%; animation-delay: -9s; animation-duration: 16s; }
-        .particle-14 { left: 55%; top: 90%; animation-delay: -11s; animation-duration: 22s; }
-        .particle-15 { left: 65%; top: 35%; animation-delay: -13s; animation-duration: 19s; }
-        .particle-16 { left: 75%; top: 65%; animation-delay: -15s; animation-duration: 21s; }
-        .particle-17 { left: 85%; top: 10%; animation-delay: -2s; animation-duration: 17s; }
-        .particle-18 { left: 95%; top: 50%; animation-delay: -4s; animation-duration: 24s; }
-        .particle-19 { left: 5%; top: 95%; animation-delay: -6s; animation-duration: 20s; }
-        .particle-20 { left: 50%; top: 5%; animation-delay: -8s; animation-duration: 18s; }
-        
-        @keyframes float-particle {
-          0%, 100% { 
+        @keyframes particle-float {
+          0% { 
             transform: translate(0, 0) scale(1);
-            opacity: 0.6;
+            opacity: 0;
           }
-          25% { 
-            transform: translate(30px, -40px) scale(1.5);
-            opacity: 0.8;
+          10% {
+            opacity: 1;
           }
           50% { 
-            transform: translate(-20px, -80px) scale(1);
-            opacity: 0.4;
+            transform: translate(calc(var(--random-x, 50px)), calc(var(--random-y, -100px))) scale(1.5);
+            opacity: 0.8;
           }
-          75% { 
-            transform: translate(40px, -40px) scale(1.3);
-            opacity: 0.7;
+          90% {
+            opacity: 1;
+          }
+          100% { 
+            transform: translate(calc(var(--random-x, 50px) * 2), calc(var(--random-y, -100px) * 2)) scale(1);
+            opacity: 0;
           }
         }
         
-        .bg-grid-pattern {
-          background-image: 
-            linear-gradient(rgba(139, 92, 246, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
+        .bg-noise {
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
       `}</style>
     </div>
