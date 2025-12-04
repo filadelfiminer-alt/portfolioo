@@ -1,197 +1,253 @@
-import { useEffect, useState, useRef } from "react";
-
-interface Particle {
-  x: number;
-  y: number;
-  size: number;
-  delay: number;
-}
+import { useEffect, useState, useRef, useCallback } from "react";
 
 export function AnimatedBackground() {
   const [mounted, setMounted] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [smoothMouse, setSmoothMouse] = useState({ x: 0.5, y: 0.5 });
-  const particlesRef = useRef<Particle[]>([]);
-  const rafRef = useRef<number>();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Array<{
+    x: number;
+    y: number;
+    baseX: number;
+    baseY: number;
+    size: number;
+    speed: number;
+    angle: number;
+  }>>([]);
+
+  const initParticles = useCallback(() => {
+    const particles = [];
+    for (let i = 0; i < 50; i++) {
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      particles.push({
+        x,
+        y,
+        baseX: x,
+        baseY: y,
+        size: 2 + Math.random() * 3,
+        speed: 0.2 + Math.random() * 0.3,
+        angle: Math.random() * Math.PI * 2,
+      });
+    }
+    particlesRef.current = particles;
+  }, []);
 
   useEffect(() => {
     setMounted(true);
-    
-    // Generate random particles
-    particlesRef.current = [...Array(10)].map((_, i) => ({
-      x: 10 + Math.random() * 80,
-      y: 10 + Math.random() * 80,
-      size: 3 + Math.random() * 2,
-      delay: i * 4,
-    }));
-
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
+    initParticles();
 
     const handleMouseMove = (e: MouseEvent) => {
-      const x = e.clientX / window.innerWidth;
-      const y = e.clientY / window.innerHeight;
-      setMousePos({ x, y });
+      setMousePos({
+        x: e.clientX / window.innerWidth,
+        y: e.clientY / window.innerHeight,
+      });
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [initParticles]);
 
-  // Smooth mouse following
+  // Canvas animation
   useEffect(() => {
-    const animate = () => {
-      setSmoothMouse(prev => ({
-        x: prev.x + (mousePos.x - prev.x) * 0.08,
-        y: prev.y + (mousePos.y - prev.y) * 0.08,
-      }));
-      rafRef.current = requestAnimationFrame(animate);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let time = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
-    rafRef.current = requestAnimationFrame(animate);
+    resize();
+    window.addEventListener('resize', resize);
+
+    const isDark = document.documentElement.classList.contains('dark');
+
+    const animate = () => {
+      time += 0.005;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const mouseX = mousePos.x * canvas.width;
+      const mouseY = mousePos.y * canvas.height;
+
+      // Update and draw particles
+      particlesRef.current.forEach((p, i) => {
+        // Gentle floating motion
+        p.angle += p.speed * 0.02;
+        const floatX = Math.sin(p.angle) * 20;
+        const floatY = Math.cos(p.angle * 0.7) * 15;
+
+        // Calculate distance to mouse
+        const targetX = (p.baseX / 100) * canvas.width + floatX;
+        const targetY = (p.baseY / 100) * canvas.height + floatY;
+        const dx = mouseX - targetX;
+        const dy = mouseY - targetY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = 200;
+
+        // Attract particles toward cursor
+        let attractX = 0;
+        let attractY = 0;
+        if (dist < maxDist) {
+          const force = (1 - dist / maxDist) * 40;
+          attractX = (dx / dist) * force;
+          attractY = (dy / dist) * force;
+        }
+
+        p.x = targetX + attractX;
+        p.y = targetY + attractY;
+
+        // Draw particle
+        const alpha = isDark ? 0.6 : 0.4;
+        const glow = isDark ? 0.3 : 0.2;
+        
+        // Glow effect
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4);
+        gradient.addColorStop(0, `rgba(139, 92, 246, ${alpha})`);
+        gradient.addColorStop(0.5, `rgba(167, 139, 250, ${glow})`);
+        gradient.addColorStop(1, 'transparent');
+        
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = isDark ? 'rgba(192, 132, 252, 0.8)' : 'rgba(139, 92, 246, 0.6)';
+        ctx.fill();
+      });
+
+      // Draw connection lines between nearby particles
+      const lineAlpha = isDark ? 0.15 : 0.1;
+      ctx.strokeStyle = `rgba(139, 92, 246, ${lineAlpha})`;
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        for (let j = i + 1; j < particlesRef.current.length; j++) {
+          const p1 = particlesRef.current[i];
+          const p2 = particlesRef.current[j];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 120) {
+            const opacity = (1 - dist / 120) * lineAlpha;
+            ctx.strokeStyle = `rgba(139, 92, 246, ${opacity})`;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw lines from cursor to nearby particles
+      const cursorLineAlpha = isDark ? 0.25 : 0.18;
+      particlesRef.current.forEach(p => {
+        const dx = mouseX - p.x;
+        const dy = mouseY - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 150) {
+          const opacity = (1 - dist / 150) * cursorLineAlpha;
+          ctx.strokeStyle = `rgba(192, 132, 252, ${opacity})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(mouseX, mouseY);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
+      });
+
+      // Cursor glow
+      const cursorGradient = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 120);
+      cursorGradient.addColorStop(0, isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.08)');
+      cursorGradient.addColorStop(0.5, isDark ? 'rgba(167, 139, 250, 0.08)' : 'rgba(167, 139, 250, 0.04)');
+      cursorGradient.addColorStop(1, 'transparent');
+      
+      ctx.beginPath();
+      ctx.arc(mouseX, mouseY, 120, 0, Math.PI * 2);
+      ctx.fillStyle = cursorGradient;
+      ctx.fill();
+
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resize);
     };
   }, [mousePos]);
 
   if (!mounted) return null;
 
-  const normalizedX = (smoothMouse.x - 0.5) * 2;
-  const normalizedY = (smoothMouse.y - 0.5) * 2;
-
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Base gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/50 to-fuchsia-50/30 dark:from-slate-950 dark:via-violet-950/50 dark:to-fuchsia-950/30" />
+      {/* Soft gradient base */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/40 to-fuchsia-50/30 dark:from-slate-950 dark:via-violet-950/40 dark:to-fuchsia-950/30" />
       
-      {/* Aurora ribbon 1 */}
-      <div 
-        className="aurora aurora-1"
-        style={{
-          transform: `translate(${normalizedX * 12}px, ${normalizedY * 12}px)`
-        }}
-      />
+      {/* Aurora layers */}
+      <div className="aurora aurora-1" />
+      <div className="aurora aurora-2" />
       
-      {/* Aurora ribbon 2 */}
-      <div 
-        className="aurora aurora-2"
-        style={{
-          transform: `translate(${normalizedX * -10}px, ${normalizedY * -10}px)`
-        }}
+      {/* Interactive canvas */}
+      <canvas 
+        ref={canvasRef} 
+        className="absolute inset-0"
+        style={{ opacity: 0.9 }}
       />
       
-      {/* Soft orbs */}
-      <div 
-        className="orb orb-1"
-        style={{
-          transform: `translate(${normalizedX * 15}px, ${normalizedY * 15}px)`
-        }}
-      />
-      <div 
-        className="orb orb-2"
-        style={{
-          transform: `translate(${normalizedX * -12}px, ${normalizedY * -12}px)`
-        }}
-      />
-      <div 
-        className="orb orb-3"
-        style={{
-          transform: `translate(${normalizedX * 10}px, ${normalizedY * 10}px)`
-        }}
-      />
-      
-      {/* Glowing lines */}
-      <div 
-        className="glow-line glow-line-1"
-        style={{
-          transform: `rotate(-15deg) translate(${normalizedX * 8}px, ${normalizedY * 8}px)`
-        }}
-      />
-      <div 
-        className="glow-line glow-line-2"
-        style={{
-          transform: `rotate(12deg) translate(${normalizedX * -6}px, ${normalizedY * -6}px)`
-        }}
-      />
-      
-      {/* Floating particles */}
-      <div className="particles-container">
-        {particlesRef.current.map((p, i) => (
-          <div 
-            key={i} 
-            className="particle"
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              animationDelay: `${p.delay}s`,
-              transform: `translate(${normalizedX * (6 + i % 4)}px, ${normalizedY * (6 + i % 4)}px)`
-            }} 
-          />
-        ))}
-      </div>
-      
-      {/* Cursor spotlight */}
-      <div 
-        className="spotlight"
-        style={{
-          left: `${smoothMouse.x * 100}%`,
-          top: `${smoothMouse.y * 100}%`,
-        }}
-      />
-      
-      {/* Noise texture overlay */}
+      {/* Subtle noise texture */}
       <div className="noise-overlay" />
       
       <style>{`
         .aurora {
           position: absolute;
-          filter: blur(80px);
-          opacity: 0.6;
-          transition: transform 0.4s ease-out;
+          filter: blur(100px);
+          opacity: 0.5;
         }
         
         .aurora-1 {
-          width: 120%;
+          width: 80%;
           height: 50%;
-          top: -20%;
+          top: -10%;
           left: -10%;
           background: linear-gradient(
             135deg,
-            rgba(124, 58, 237, 0.12) 0%,
-            rgba(167, 139, 250, 0.10) 25%,
-            rgba(192, 132, 252, 0.08) 50%,
-            rgba(232, 121, 249, 0.06) 75%,
+            rgba(124, 58, 237, 0.15) 0%,
+            rgba(167, 139, 250, 0.10) 50%,
             transparent 100%
           );
-          animation: aurora-flow-1 60s ease-in-out infinite;
+          animation: aurora-drift-1 45s ease-in-out infinite;
         }
         
         .aurora-2 {
-          width: 100%;
+          width: 70%;
           height: 60%;
-          bottom: -20%;
+          bottom: -15%;
           right: -10%;
           background: linear-gradient(
             -45deg,
-            rgba(192, 132, 252, 0.10) 0%,
-            rgba(139, 92, 246, 0.08) 30%,
-            rgba(124, 58, 237, 0.06) 60%,
+            rgba(192, 132, 252, 0.12) 0%,
+            rgba(232, 121, 249, 0.08) 50%,
             transparent 100%
           );
-          animation: aurora-flow-2 55s ease-in-out infinite;
+          animation: aurora-drift-2 50s ease-in-out infinite;
         }
         
         .dark .aurora-1 {
           background: linear-gradient(
             135deg,
-            rgba(124, 58, 237, 0.18) 0%,
-            rgba(167, 139, 250, 0.14) 25%,
-            rgba(192, 132, 252, 0.10) 50%,
-            rgba(232, 121, 249, 0.08) 75%,
+            rgba(124, 58, 237, 0.25) 0%,
+            rgba(167, 139, 250, 0.15) 50%,
             transparent 100%
           );
         }
@@ -199,222 +255,40 @@ export function AnimatedBackground() {
         .dark .aurora-2 {
           background: linear-gradient(
             -45deg,
-            rgba(192, 132, 252, 0.14) 0%,
-            rgba(139, 92, 246, 0.12) 30%,
-            rgba(124, 58, 237, 0.08) 60%,
+            rgba(192, 132, 252, 0.20) 0%,
+            rgba(232, 121, 249, 0.12) 50%,
             transparent 100%
           );
         }
         
-        @keyframes aurora-flow-1 {
-          0%, 100% { 
-            transform: translateX(0) translateY(0) rotate(0deg);
-          }
-          25% {
-            transform: translateX(20px) translateY(15px) rotate(2deg);
-          }
-          50% { 
-            transform: translateX(10px) translateY(25px) rotate(-1deg);
-          }
-          75% {
-            transform: translateX(-15px) translateY(10px) rotate(1deg);
-          }
+        @keyframes aurora-drift-1 {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          50% { transform: translate(30px, 20px) rotate(3deg); }
         }
         
-        @keyframes aurora-flow-2 {
-          0%, 100% { 
-            transform: translateX(0) translateY(0) rotate(0deg);
-          }
-          33% {
-            transform: translateX(-18px) translateY(-12px) rotate(-2deg);
-          }
-          66% { 
-            transform: translateX(12px) translateY(-20px) rotate(1deg);
-          }
-        }
-        
-        .orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(60px);
-          transition: transform 0.35s ease-out;
-        }
-        
-        .orb-1 {
-          width: 380px;
-          height: 380px;
-          top: 5%;
-          left: 10%;
-          background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
-          animation: orb-drift-1 65s ease-in-out infinite;
-        }
-        
-        .orb-2 {
-          width: 320px;
-          height: 320px;
-          bottom: 15%;
-          right: 15%;
-          background: radial-gradient(circle, rgba(192, 132, 252, 0.10) 0%, transparent 70%);
-          animation: orb-drift-2 58s ease-in-out infinite;
-        }
-        
-        .orb-3 {
-          width: 280px;
-          height: 280px;
-          top: 50%;
-          left: 50%;
-          margin-left: -140px;
-          margin-top: -140px;
-          background: radial-gradient(circle, rgba(232, 121, 249, 0.08) 0%, transparent 70%);
-          animation: orb-drift-3 70s ease-in-out infinite;
-        }
-        
-        .dark .orb-1 { background: radial-gradient(circle, rgba(139, 92, 246, 0.16) 0%, transparent 70%); }
-        .dark .orb-2 { background: radial-gradient(circle, rgba(192, 132, 252, 0.14) 0%, transparent 70%); }
-        .dark .orb-3 { background: radial-gradient(circle, rgba(232, 121, 249, 0.12) 0%, transparent 70%); }
-        
-        @keyframes orb-drift-1 {
-          0%, 100% { margin-left: 0; margin-top: 0; }
-          50% { margin-left: 25px; margin-top: 20px; }
-        }
-        
-        @keyframes orb-drift-2 {
-          0%, 100% { margin-right: 0; margin-bottom: 0; }
-          50% { margin-right: -20px; margin-bottom: -15px; }
-        }
-        
-        @keyframes orb-drift-3 {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-        }
-        
-        .glow-line {
-          position: absolute;
-          height: 2px;
-          background: linear-gradient(90deg, 
-            transparent, 
-            rgba(139, 92, 246, 0.20), 
-            rgba(192, 132, 252, 0.25), 
-            rgba(232, 121, 249, 0.20), 
-            transparent
-          );
-          transition: transform 0.4s ease-out;
-        }
-        
-        .dark .glow-line {
-          background: linear-gradient(90deg, 
-            transparent, 
-            rgba(139, 92, 246, 0.28), 
-            rgba(192, 132, 252, 0.32), 
-            rgba(232, 121, 249, 0.28), 
-            transparent
-          );
-        }
-        
-        .glow-line-1 {
-          width: 45%;
-          top: 30%;
-          left: 10%;
-          animation: line-glow-1 14s ease-in-out infinite;
-        }
-        
-        .glow-line-2 {
-          width: 35%;
-          top: 70%;
-          right: 15%;
-          animation: line-glow-2 18s ease-in-out infinite;
-        }
-        
-        @keyframes line-glow-1 {
-          0%, 100% { opacity: 0.3; width: 45%; }
-          50% { opacity: 0.7; width: 55%; }
-        }
-        
-        @keyframes line-glow-2 {
-          0%, 100% { opacity: 0.2; width: 35%; }
-          50% { opacity: 0.6; width: 42%; }
-        }
-        
-        .particles-container {
-          position: absolute;
-          inset: 0;
-        }
-        
-        .particle {
-          position: absolute;
-          border-radius: 50%;
-          background: rgba(139, 92, 246, 0.5);
-          box-shadow: 0 0 6px rgba(139, 92, 246, 0.3);
-          animation: particle-float 50s ease-in-out infinite;
-          transition: transform 0.3s ease-out;
-        }
-        
-        .dark .particle {
-          background: rgba(192, 132, 252, 0.6);
-          box-shadow: 0 0 8px rgba(192, 132, 252, 0.4);
-        }
-        
-        @keyframes particle-float {
-          0%, 100% { 
-            transform: translate(0, 0);
-            opacity: 0.4;
-          }
-          25% {
-            transform: translate(8px, -12px);
-            opacity: 0.7;
-          }
-          50% { 
-            transform: translate(15px, -20px);
-            opacity: 0.5;
-          }
-          75% {
-            transform: translate(6px, -28px);
-            opacity: 0.6;
-          }
-        }
-        
-        .spotlight {
-          position: absolute;
-          width: 500px;
-          height: 500px;
-          margin-left: -250px;
-          margin-top: -250px;
-          background: radial-gradient(
-            circle,
-            rgba(139, 92, 246, 0.08) 0%,
-            rgba(192, 132, 252, 0.04) 30%,
-            transparent 60%
-          );
-          pointer-events: none;
-          transition: left 0.1s ease-out, top 0.1s ease-out;
-        }
-        
-        .dark .spotlight {
-          background: radial-gradient(
-            circle,
-            rgba(139, 92, 246, 0.12) 0%,
-            rgba(192, 132, 252, 0.06) 30%,
-            transparent 60%
-          );
+        @keyframes aurora-drift-2 {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          50% { transform: translate(-25px, -15px) rotate(-2deg); }
         }
         
         .noise-overlay {
           position: absolute;
           inset: 0;
-          opacity: 0.03;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+          opacity: 0.025;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }
         
         .dark .noise-overlay {
-          opacity: 0.05;
+          opacity: 0.04;
         }
         
         @media (prefers-reduced-motion: reduce) {
-          .aurora, .orb, .glow-line, .particle, .spotlight {
+          .aurora {
             animation: none !important;
-            transition: none !important;
           }
-          .spotlight { display: none; }
+          canvas {
+            display: none;
+          }
         }
       `}</style>
     </div>
