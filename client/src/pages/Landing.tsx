@@ -23,7 +23,7 @@ export default function Landing() {
     queryKey: ["/api/about"],
   });
 
-  const publishedProjects = projects.filter(p => p.published).slice(0, 6);
+  const publishedProjects = projects.filter(p => p.published);
 
   useEffect(() => {
     if (secretClicks >= 7) {
@@ -146,7 +146,7 @@ export default function Landing() {
               className="text-center"
             >
               {/* Avatar/Photo */}
-              {aboutContent?.profilePhotoUrl && (
+              {aboutContent?.photoUrl && (
                 <motion.div
                   variants={itemVariants}
                   className="mb-8"
@@ -156,7 +156,7 @@ export default function Landing() {
                     whileHover={{ scale: 1.1, rotate: 5 }}
                   >
                     <img 
-                      src={aboutContent.profilePhotoUrl} 
+                      src={aboutContent.photoUrl} 
                       alt="Фото" 
                       className="w-full h-full object-cover"
                     />
@@ -310,60 +310,77 @@ export default function Landing() {
             </motion.div>
 
             {publishedProjects.length > 0 ? (
-              <motion.div
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-50px" }}
-                className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
-              >
-                {publishedProjects.map((project, i) => (
+              <>
+                {/* Infinite Scrolling Carousel */}
+                <div className="relative overflow-hidden py-4">
+                  {/* Gradient fade edges */}
+                  <div className="absolute left-0 top-0 bottom-0 w-20 md:w-40 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+                  <div className="absolute right-0 top-0 bottom-0 w-20 md:w-40 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+                  
+                  {/* Scrolling track */}
                   <motion.div
-                    key={project.id}
-                    custom={i}
-                    variants={cardVariants}
-                    whileHover={{ y: -10, scale: 1.02 }}
-                    className="group relative bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 cursor-pointer"
-                    onClick={() => window.location.href = '/gallery'}
+                    className="flex gap-6"
+                    animate={{ x: [0, -1920] }}
+                    transition={{
+                      x: {
+                        duration: 25,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }
+                    }}
                   >
-                    <div className="aspect-[4/3] overflow-hidden">
-                      {project.coverImageUrl ? (
-                        <img 
-                          src={project.coverImageUrl} 
-                          alt={project.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
-                          <Sparkles className="h-12 w-12 text-violet-500/50" />
+                    {/* Duplicate projects for seamless loop */}
+                    {[...publishedProjects, ...publishedProjects, ...publishedProjects].map((project, i) => (
+                      <motion.div
+                        key={`${project.id}-${i}`}
+                        whileHover={{ y: -10, scale: 1.02 }}
+                        className="group relative flex-shrink-0 w-[320px] md:w-[380px] bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10 cursor-pointer"
+                        onClick={() => window.location.href = '/gallery'}
+                      >
+                        <div className="aspect-[4/3] overflow-hidden">
+                          {project.imageUrl ? (
+                            <img 
+                              src={project.imageUrl} 
+                              alt={project.title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-violet-500/30 to-fuchsia-500/30 flex items-center justify-center">
+                              <div className="text-center">
+                                <Sparkles className="h-12 w-12 text-violet-400 mx-auto mb-2" />
+                                <span className="text-violet-300 font-medium">{project.title.charAt(0)}</span>
+                              </div>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                         </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                    
-                    <div className="absolute bottom-0 left-0 right-0 p-5 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                      <h3 className="text-lg font-bold text-white mb-1 drop-shadow-lg">{project.title}</h3>
-                      {project.tags && project.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {project.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white/90 text-xs">
-                              {tag}
-                            </span>
-                          ))}
+                        
+                        <div className="absolute bottom-0 left-0 right-0 p-5">
+                          <h3 className="text-lg font-bold text-white mb-2 drop-shadow-lg">{project.title}</h3>
+                          {project.tags && project.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {project.tags.slice(0, 3).map(tag => (
+                                <span key={tag} className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white/90 text-xs font-medium">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <motion.div 
-                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                      whileHover={{ scale: 1.1 }}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <ExternalLink className="h-5 w-5 text-white" />
-                      </div>
-                    </motion.div>
+                        <motion.div 
+                          className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                          whileHover={{ scale: 1.1 }}
+                        >
+                          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                            <ExternalLink className="h-5 w-5 text-white" />
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    ))}
                   </motion.div>
-                ))}
-              </motion.div>
+                </div>
+              </>
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
