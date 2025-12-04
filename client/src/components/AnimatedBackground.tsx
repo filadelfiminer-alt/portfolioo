@@ -165,17 +165,6 @@ export function AnimatedBackground() {
         }
       });
 
-      // Cursor glow
-      const cursorGradient = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 120);
-      cursorGradient.addColorStop(0, isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.08)');
-      cursorGradient.addColorStop(0.5, isDark ? 'rgba(167, 139, 250, 0.08)' : 'rgba(167, 139, 250, 0.04)');
-      cursorGradient.addColorStop(1, 'transparent');
-      
-      ctx.beginPath();
-      ctx.arc(mouseX, mouseY, 120, 0, Math.PI * 2);
-      ctx.fillStyle = cursorGradient;
-      ctx.fill();
-
       animationId = requestAnimationFrame(animate);
     };
 
