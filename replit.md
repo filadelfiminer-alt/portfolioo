@@ -17,9 +17,10 @@ A modern portfolio website platform that allows users to showcase their creative
 - Admin message management panel with ability to view and delete messages
 
 ### Drag-and-Drop Project Reordering
-- Admin can reorder projects via drag-and-drop in the admin panel
-- Optimistic UI updates for smooth experience
-- Automatic sort order persistence to database
+- Admin can reorder projects via drag-and-drop using Framer Motion Reorder
+- Smooth spring animations with visual feedback (scale, shadow effects)
+- Debounced API calls to prevent excessive server requests
+- Automatic sort order persistence to database via PATCH /api/projects/reorder
 
 ### Multiple Images per Project
 - Projects can have multiple gallery images in addition to the main cover image
@@ -85,11 +86,12 @@ Preferred communication style: Simple, everyday language.
 - Sessions: Server-side session storage for authentication
 
 **Authentication & Authorization**
-- Replit OIDC-based authentication
-- Passport.js strategy integration
+- Simple session-based authentication with hardcoded credentials
+- Login credentials stored in environment variables (ADMIN_USERNAME, ADMIN_PASSWORD)
 - Server-side session management with PostgreSQL session store
-- Admin role support (first user automatically becomes admin)
-- Protected API routes with authentication middleware
+- Admin role automatically granted on successful login
+- Protected API routes with session middleware
+- Login page at `/login` for portfolio owner access
 
 **File Storage**
 - Google Cloud Storage integration for image uploads
@@ -102,7 +104,8 @@ Preferred communication style: Simple, everyday language.
 
 **Authentication Routes**
 - `GET /api/auth/user` - Get current authenticated user
-- OAuth flow handled by Replit Auth
+- `POST /api/login` - Login with username/password
+- `POST /api/logout` - Logout and destroy session
 
 **Project Management Routes**
 - `GET /api/projects` - List published projects (public)

@@ -162,6 +162,30 @@ export async function registerRoutes(
     }
   });
 
+  // Bulk update project order - MUST be before :id route
+  app.patch("/api/projects/reorder", isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { projectOrders } = req.body;
+      if (!Array.isArray(projectOrders)) {
+        return res.status(400).json({ message: "projectOrders must be an array" });
+      }
+
+      for (const { id, sortOrder } of projectOrders) {
+        await storage.updateProject(id, { sortOrder });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering projects:", error);
+      res.status(500).json({ message: "Failed to reorder projects" });
+    }
+  });
+
   app.patch("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
       const sessionUser = req.session?.user;
@@ -195,30 +219,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting project:", error);
       res.status(500).json({ message: "Failed to delete project" });
-    }
-  });
-
-  // Bulk update project order
-  app.patch("/api/projects/reorder", isAuthenticated, async (req: any, res) => {
-    try {
-      const sessionUser = req.session?.user;
-      if (!sessionUser?.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const { projectOrders } = req.body;
-      if (!Array.isArray(projectOrders)) {
-        return res.status(400).json({ message: "projectOrders must be an array" });
-      }
-
-      for (const { id, sortOrder } of projectOrders) {
-        await storage.updateProject(id, { sortOrder });
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error reordering projects:", error);
-      res.status(500).json({ message: "Failed to reorder projects" });
     }
   });
 

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Reorder, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,7 +39,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ObjectUploader } from "@/components/ObjectUploader";
-import { PDFDownloadButton } from "@/components/PDFDownloadButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -84,7 +84,6 @@ export default function Admin() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
-  const [draggedProject, setDraggedProject] = useState<string | null>(null);
   const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [projectImages, setProjectImages] = useState<ProjectImage[]>([]);
 
@@ -98,9 +97,18 @@ export default function Admin() {
     queryKey: ["/api/about"],
   });
 
-  // Sync local projects with fetched data
+  // Track initial sync to avoid constant re-syncing
+  const initialSyncRef = useRef(false);
+  
+  // Sync local projects with fetched data only on initial load or when count changes
   useEffect(() => {
-    setLocalProjects(projects);
+    if (!projects.length) return;
+    
+    // Initial sync or when a project is added/deleted
+    if (!initialSyncRef.current || projects.length !== localProjects.length) {
+      initialSyncRef.current = true;
+      setLocalProjects(projects);
+    }
   }, [projects]);
 
   const form = useForm<ProjectFormData>({
@@ -452,50 +460,27 @@ export default function Admin() {
     }
   };
 
-  // Drag and drop handlers
-  const handleDragStart = useCallback((projectId: string) => {
-    setDraggedProject(projectId);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
-
-  const handleDrop = useCallback((targetProjectId: string) => {
-    if (!draggedProject || draggedProject === targetProjectId) {
-      setDraggedProject(null);
-      return;
+  // Debounce ref for reorder mutation
+  const reorderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Reorder handler with Framer Motion and debouncing
+  const handleReorder = useCallback((newOrder: Project[]) => {
+    setLocalProjects(newOrder);
+    
+    // Clear any pending reorder request
+    if (reorderTimeoutRef.current) {
+      clearTimeout(reorderTimeoutRef.current);
     }
-
-    const draggedIndex = localProjects.findIndex(p => p.id === draggedProject);
-    const targetIndex = localProjects.findIndex(p => p.id === targetProjectId);
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDraggedProject(null);
-      return;
-    }
-
-    // Create new array with reordered projects
-    const newProjects = [...localProjects];
-    const [removed] = newProjects.splice(draggedIndex, 1);
-    newProjects.splice(targetIndex, 0, removed);
-
-    // Update local state immediately for smooth UX
-    setLocalProjects(newProjects);
-    setDraggedProject(null);
-
-    // Send reorder request to server
-    const projectOrders = newProjects.map((project, index) => ({
-      id: project.id,
-      sortOrder: newProjects.length - index, // Higher number = higher priority
-    }));
-
-    reorderMutation.mutate(projectOrders);
-  }, [draggedProject, localProjects, reorderMutation]);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedProject(null);
-  }, []);
+    
+    // Debounce the server update to avoid excessive API calls
+    reorderTimeoutRef.current = setTimeout(() => {
+      const projectOrders = newOrder.map((project, index) => ({
+        id: project.id,
+        sortOrder: newOrder.length - index,
+      }));
+      reorderMutation.mutate(projectOrders);
+    }, 300);
+  }, [reorderMutation]);
 
   if (authLoading) {
     return (
@@ -567,13 +552,6 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <ThemeToggle />
-            <PDFDownloadButton
-              projects={localProjects.filter(p => p.published)}
-              aboutContent={aboutContent}
-              ownerName={aboutContent?.title || "Портфолио"}
-              variant="outline"
-              size="sm"
-            />
             <Link href="/gallery">
               <Button variant="outline" size="sm" data-testid="button-view-portfolio">
                 <Home className="h-4 w-4 mr-2" />
@@ -984,135 +962,162 @@ export default function Admin() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
                 <GripVertical className="h-4 w-4" />
-                Перетащите для изменения порядка
+                Перетащите карточку для изменения порядка
               </div>
-              {localProjects.map((project) => (
-                <Card 
-                  key={project.id} 
-                  data-testid={`admin-card-project-${project.id}`}
-                  draggable
-                  onDragStart={() => handleDragStart(project.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDrop(project.id)}
-                  onDragEnd={handleDragEnd}
-                  className={`cursor-move transition-all ${
-                    draggedProject === project.id 
-                      ? 'opacity-50 border-primary' 
-                      : 'hover:border-primary/50'
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div 
-                        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground"
-                        data-testid={`drag-handle-${project.id}`}
-                      >
-                        <GripVertical className="h-5 w-5" />
-                      </div>
-                      <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                        {project.imageUrl ? (
-                          <img
-                            src={project.imageUrl}
-                            alt={project.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xl font-bold">
-                            {project.title.charAt(0)}
+              <AnimatePresence mode="popLayout">
+              <Reorder.Group 
+                axis="y" 
+                values={localProjects} 
+                onReorder={handleReorder}
+                className="flex flex-col gap-3"
+                layoutScroll
+              >
+                {localProjects.map((project) => (
+                  <Reorder.Item 
+                    key={project.id} 
+                    value={project}
+                    id={project.id}
+                    layout
+                    className="relative cursor-grab active:cursor-grabbing select-none touch-none list-none"
+                    style={{ listStyle: 'none' }}
+                    whileDrag={{
+                      scale: 1.03,
+                      boxShadow: "0 25px 50px -12px rgba(139, 92, 246, 0.35)",
+                      zIndex: 50,
+                      cursor: "grabbing",
+                    }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{
+                      layout: { type: "spring", stiffness: 350, damping: 25 },
+                      opacity: { duration: 0.2 }
+                    }}
+                  >
+                    <Card 
+                      data-testid={`admin-card-project-${project.id}`}
+                      className="bg-card hover:border-primary/50 transition-colors pointer-events-auto"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-grab active:cursor-grabbing"
+                            data-testid={`drag-handle-${project.id}`}
+                          >
+                            <GripVertical className="h-5 w-5" />
                           </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold truncate">
-                            {project.title}
-                          </h3>
-                          {project.featured && (
-                            <Badge variant="secondary" className="text-xs">
-                              Избранный
-                            </Badge>
-                          )}
-                          {!project.published && (
-                            <Badge variant="outline" className="text-xs">
-                              Черновик
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {project.shortDescription || project.description}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {project.tags?.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            togglePublishMutation.mutate({
-                              id: project.id,
-                              published: !project.published,
-                            })
-                          }
-                          data-testid={`button-toggle-publish-${project.id}`}
-                        >
-                          {project.published ? (
-                            <Eye className="h-4 w-4" />
-                          ) : (
-                            <EyeOff className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(project)}
-                          data-testid={`button-edit-${project.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
+                          <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            {project.imageUrl ? (
+                              <img
+                                src={project.imageUrl}
+                                alt={project.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xl font-bold">
+                                {project.title.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold truncate">
+                                {project.title}
+                              </h3>
+                              {project.featured && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Избранный
+                                </Badge>
+                              )}
+                              {!project.published && (
+                                <Badge variant="outline" className="text-xs">
+                                  Черновик
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {project.shortDescription || project.description}
+                            </p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {project.tags?.slice(0, 3).map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              data-testid={`button-delete-${project.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePublishMutation.mutate({
+                                  id: project.id,
+                                  published: !project.published,
+                                });
+                              }}
+                              data-testid={`button-toggle-publish-${project.id}`}
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              {project.published ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <EyeOff className="h-4 w-4" />
+                              )}
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Удалить проект</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Вы уверены, что хотите удалить «{project.title}»?
-                                Это действие нельзя отменить.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Отмена</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteMutation.mutate(project.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                data-testid={`button-confirm-delete-${project.id}`}
-                              >
-                                Удалить
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(project);
+                              }}
+                              data-testid={`button-edit-${project.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => e.stopPropagation()}
+                                  data-testid={`button-delete-${project.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить проект</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Вы уверены, что хотите удалить «{project.title}»?
+                                    Это действие нельзя отменить.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(project.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    data-testid={`button-confirm-delete-${project.id}`}
+                                  >
+                                    Удалить
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Reorder.Item>
+                ))}
+              </Reorder.Group>
+              </AnimatePresence>
             </div>
           )}
         </div>
