@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import { PDFDownloadButton } from "@/components/PDFDownloadButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -57,7 +58,7 @@ import {
   X,
   GripVertical,
 } from "lucide-react";
-import type { Project, ProjectImage } from "@shared/schema";
+import type { Project, ProjectImage, AboutContent } from "@shared/schema";
 
 const projectFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -91,6 +92,10 @@ export default function Admin() {
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
     enabled: !!user?.isAdmin,
+  });
+
+  const { data: aboutContent } = useQuery<AboutContent>({
+    queryKey: ["/api/about"],
   });
 
   // Sync local projects with fetched data
@@ -567,6 +572,13 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <ThemeToggle />
+            <PDFDownloadButton
+              projects={localProjects.filter(p => p.published)}
+              aboutContent={aboutContent}
+              ownerName={aboutContent?.title || "Portfolio"}
+              variant="outline"
+              size="sm"
+            />
             <Link href="/gallery">
               <Button variant="outline" size="sm" data-testid="button-view-portfolio">
                 <Home className="h-4 w-4 mr-2" />

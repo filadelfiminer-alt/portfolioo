@@ -5,11 +5,12 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProjectCard } from "@/components/ProjectCard";
 import { ProjectModal } from "@/components/ProjectModal";
 import { TagFilter } from "@/components/TagFilter";
+import { PDFDownloadButton } from "@/components/PDFDownloadButton";
 import { useAuth } from "@/hooks/useAuth";
 import { Sparkles, Settings, LogOut, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
-import type { Project } from "@shared/schema";
+import type { Project, AboutContent } from "@shared/schema";
 
 export default function Home() {
   const { user } = useAuth();
@@ -18,6 +19,10 @@ export default function Home() {
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+
+  const { data: aboutContent } = useQuery<AboutContent>({
+    queryKey: ["/api/about"],
   });
 
   const allTags = useMemo(() => {
@@ -54,6 +59,13 @@ export default function Home() {
                 Contact
               </Button>
             </Link>
+            <PDFDownloadButton
+              projects={filteredProjects}
+              aboutContent={aboutContent}
+              ownerName={aboutContent?.title || "Portfolio"}
+              variant="ghost"
+              size="sm"
+            />
             <ThemeToggle />
             {user?.isAdmin && (
               <Link href="/admin">

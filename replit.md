@@ -4,6 +4,34 @@
 
 A modern portfolio website platform that allows users to showcase their creative projects through a beautiful, visually-rich gallery interface. The application features two distinct experiences: a public-facing portfolio showcase with project filtering and detailed views, and an authenticated admin panel for content management. Built with React, Express, and PostgreSQL, the platform includes user authentication via Replit Auth and file storage capabilities through Google Cloud Storage.
 
+## Phase 2 Features (Completed)
+
+### About Me Page
+- Public `/about` page displaying portfolio owner's bio, title, and profile photo
+- Admin editing capability for all About content fields
+- Profile photo upload using Object Storage integration
+
+### Contact Page
+- Public `/contact` page with contact form (name, email, message)
+- Messages stored in database for admin review
+- Admin message management panel with ability to view and delete messages
+
+### Drag-and-Drop Project Reordering
+- Admin can reorder projects via drag-and-drop in the admin panel
+- Optimistic UI updates for smooth experience
+- Automatic sort order persistence to database
+
+### Multiple Images per Project
+- Projects can have multiple gallery images in addition to the main cover image
+- Image carousel in project modal with navigation controls
+- Gallery image management in admin edit dialog
+
+### PDF Export
+- Export portfolio as professional PDF document
+- Includes cover page, About Me section, and all projects
+- Available from both admin panel and public gallery
+- Uses @react-pdf/renderer for client-side PDF generation
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -51,6 +79,9 @@ Preferred communication style: Simple, everyday language.
 **Data Models**
 - Users: Authentication and admin role management
 - Projects: Portfolio items with metadata (title, description, tags, categories, URLs, technologies, publishing status)
+- ProjectImages: Additional gallery images for projects (Phase 2)
+- AboutContent: About page content (title, bio, profile photo) (Phase 2)
+- ContactMessages: Contact form submissions (Phase 2)
 - Sessions: Server-side session storage for authentication
 
 **Authentication & Authorization**
@@ -79,6 +110,21 @@ Preferred communication style: Simple, everyday language.
 - `POST /api/projects` - Create new project (admin only)
 - `PATCH /api/projects/:id` - Update project (admin only)
 - `DELETE /api/projects/:id` - Delete project (admin only)
+- `PATCH /api/projects/reorder` - Reorder projects by sort order (admin only)
+
+**Project Images Routes (Phase 2)**
+- `GET /api/projects/:id/images` - Get gallery images for a project
+- `POST /api/projects/:id/images` - Add gallery image to a project (admin only)
+- `DELETE /api/project-images/:id` - Delete a gallery image (admin only)
+
+**About Content Routes (Phase 2)**
+- `GET /api/about` - Get about page content (public)
+- `PUT /api/about` - Update about page content (admin only)
+
+**Contact Routes (Phase 2)**
+- `POST /api/contact` - Submit contact form message (public)
+- `GET /api/admin/messages` - List all contact messages (admin only)
+- `DELETE /api/admin/messages/:id` - Delete a contact message (admin only)
 
 **File Routes**
 - `GET /public-objects/:filePath(*)` - Serve public files
