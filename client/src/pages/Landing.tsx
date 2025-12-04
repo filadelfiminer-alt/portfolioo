@@ -11,7 +11,7 @@ import type { Project, About } from "@shared/schema";
 export default function Landing() {
   const [secretClicks, setSecretClicks] = useState(0);
   const [showSecret, setShowSecret] = useState(false);
-  const [showGreeting, setShowGreeting] = useState(false);
+  const [greetingVisible, setGreetingVisible] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
@@ -65,21 +65,14 @@ export default function Landing() {
     }
   };
 
-  // Show greeting notification on load
+  // Show greeting with notification effect on load
   useEffect(() => {
     const timer = setTimeout(() => {
-      setShowGreeting(true);
+      setGreetingVisible(true);
       playNotificationSound();
-    }, 800);
+    }, 600);
     
-    const hideTimer = setTimeout(() => {
-      setShowGreeting(false);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(timer);
-      clearTimeout(hideTimer);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -125,40 +118,6 @@ export default function Landing() {
   return (
     <div className="min-h-screen relative overflow-x-hidden">
       <AnimatedBackground />
-      
-      {/* Greeting Notification */}
-      <AnimatePresence>
-        {showGreeting && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
-              damping: 25 
-            }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100]"
-          >
-            <div className="flex items-start gap-3 px-5 py-4 rounded-2xl bg-card/95 backdrop-blur-xl border border-violet-500/30 shadow-2xl shadow-violet-500/20">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs text-muted-foreground mb-1">Новое сообщение</span>
-                <p className="font-medium text-foreground">
-                  Привет, я <span className="font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Filadelfi</span>
-                </p>
-              </div>
-              <motion.div
-                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-violet-500"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       
       {/* Secret Easter Egg */}
       {showSecret && (
@@ -255,12 +214,38 @@ export default function Landing() {
                 </motion.div>
               )}
 
-              {/* Greeting */}
-              <motion.div variants={itemVariants} className="mb-6">
-                <span className="inline-block px-5 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-500 dark:text-violet-400 text-sm font-medium">
-                  Привет, я {aboutContent?.title || "Креатор"}
-                </span>
-              </motion.div>
+              {/* Greeting - Notification Style */}
+              <AnimatePresence>
+                {greetingVisible && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -30, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 300, 
+                      damping: 20 
+                    }}
+                    className="mb-6"
+                  >
+                    <div className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-card/80 backdrop-blur-xl border border-violet-500/30 shadow-lg shadow-violet-500/10">
+                      <div className="relative flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-white" />
+                        <motion.div
+                          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-card"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        />
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">сейчас</span>
+                        <p className="font-medium text-foreground text-sm">
+                          Привет, я <span className="font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Filadelfi</span>
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Main Heading */}
               <motion.h1 
