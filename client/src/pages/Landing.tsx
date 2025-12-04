@@ -326,11 +326,14 @@ export default function Landing() {
                         {/* Waving hand emoji */}
                         <motion.div
                           animate={{ 
-                            rotate: [0, 20, -10, 20, 0]
+                            rotate: [0, 14, -8, 14, 0]
                           }}
-                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-                          className="relative z-10 origin-bottom-right text-lg"
-                          style={{ filter: "drop-shadow(0 0 4px rgba(251,191,36,0.3))" }}
+                          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.8 }}
+                          className="relative z-10 text-base"
+                          style={{ 
+                            transformOrigin: "70% 70%",
+                            filter: "drop-shadow(0 0 3px rgba(251,191,36,0.25))" 
+                          }}
                         >
                           👋
                         </motion.div>
