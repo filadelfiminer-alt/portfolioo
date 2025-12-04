@@ -428,26 +428,29 @@ export default function Landing() {
                   </motion.div>
                 ))}
               </motion.div>
+
+              {/* Scroll Indicator - centered under skills */}
+              <motion.div
+                variants={itemVariants}
+                className="flex justify-center mt-12"
+              >
+                <motion.a 
+                  href="#works" 
+                  className="flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                  animate={{ y: [0, 6, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <div className="w-5 h-8 rounded-full border-2 border-current flex items-start justify-center p-1.5">
+                    <motion.div
+                      className="w-1 h-2 rounded-full bg-current"
+                      animate={{ y: [0, 8, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    />
+                  </div>
+                </motion.a>
+              </motion.div>
             </motion.div>
           </div>
-
-          {/* Scroll Indicator */}
-          <motion.div
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <a href="#works" className="flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <span className="text-xs font-medium">Листай</span>
-              <div className="w-6 h-10 rounded-full border-2 border-current flex items-start justify-center p-2">
-                <motion.div
-                  className="w-1.5 h-2.5 rounded-full bg-current"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              </div>
-            </a>
-          </motion.div>
         </motion.section>
 
         {/* Works Section */}
