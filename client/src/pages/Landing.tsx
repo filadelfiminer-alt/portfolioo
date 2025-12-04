@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
-import { ArrowRight, ArrowDown, Code2, Palette, Lightbulb, Sparkles, Star, Heart, ExternalLink, Github, Mail, MessageCircle, BadgeCheck } from "lucide-react";
+import { ArrowRight, ArrowDown, Code2, Palette, Lightbulb, Sparkles, Star, Heart, ExternalLink, Github, Mail, MessageCircle, Zap } from "lucide-react";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import type { Project, About } from "@shared/schema";
@@ -323,28 +323,18 @@ export default function Landing() {
                           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                         />
                         
-                        {/* Badge icon with subtle float */}
+                        {/* Zap icon with energy effect */}
                         <motion.div
                           animate={{ 
-                            y: [0, -1.5, 0],
-                            scale: [1, 1.03, 1]
-                          }}
-                          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                          className="relative z-10"
-                        >
-                          <BadgeCheck className="w-5 h-5 text-violet-500 fill-violet-500/20 drop-shadow-[0_0_4px_rgba(139,92,246,0.4)]" />
-                        </motion.div>
-                        
-                        {/* Verified dot */}
-                        <motion.div
-                          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-card"
-                          style={{ boxShadow: "0 0 6px rgba(52,211,153,0.5)" }}
-                          animate={{ 
-                            scale: [1, 1.15, 1],
-                            opacity: [0.8, 1, 0.8]
+                            y: [0, -2, 0],
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 5, -5, 0]
                           }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                        />
+                          className="relative z-10"
+                        >
+                          <Zap className="w-5 h-5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+                        </motion.div>
                       </motion.div>
                     </motion.div>
                   )}
