@@ -484,11 +484,13 @@ export default function Landing() {
             {publishedProjects.length > 0 ? (
               <>
                 {/* Infinite Scrolling Carousel */}
-                <div className="relative overflow-hidden py-8">
-                  {/* Soft gradient edges */}
-                  <div className="absolute left-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-r from-background via-background/80 to-transparent z-10 pointer-events-none" />
-                  <div className="absolute right-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none" />
-                  
+                <div 
+                  className="relative overflow-hidden py-8"
+                  style={{
+                    maskImage: "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)",
+                    WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%)"
+                  }}
+                >
                   {/* Scrolling track */}
                   <motion.div 
                     className="flex gap-6"
