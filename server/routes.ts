@@ -7,7 +7,7 @@ import {
   ObjectNotFoundError,
 } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertProjectSchema, insertAboutSchema, insertContactMessageSchema, insertProjectImageSchema } from "@shared/schema";
+import { insertProjectSchema, insertAboutSchema, insertContactMessageSchema, insertProjectImageSchema, insertSiteSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -369,6 +369,37 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting project image:", error);
       res.status(500).json({ message: "Failed to delete project image" });
+    }
+  });
+
+  // Site settings routes - public
+  app.get("/api/site-settings", async (req, res) => {
+    try {
+      const settings = await storage.getSiteSettings();
+      res.json(settings || null);
+    } catch (error) {
+      console.error("Error fetching site settings:", error);
+      res.status(500).json({ message: "Failed to fetch site settings" });
+    }
+  });
+
+  // Site settings routes - admin only
+  app.put("/api/site-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionUser = req.session?.user;
+      if (!sessionUser?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const validatedData = insertSiteSettingsSchema.parse(req.body);
+      const settings = await storage.upsertSiteSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating site settings:", error);
+      res.status(500).json({ message: "Failed to update site settings" });
     }
   });
 

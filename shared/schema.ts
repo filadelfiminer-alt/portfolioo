@@ -105,6 +105,20 @@ export const projectImages = pgTable("project_images", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Site settings table for hero section and branding
+export const siteSettings = pgTable("site_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  greetingName: varchar("greeting_name", { length: 100 }).default("Filadelfi"),
+  greetingPrefix: varchar("greeting_prefix", { length: 100 }).default("Привет, я"),
+  heroTitle: varchar("hero_title", { length: 255 }).default("Создаю"),
+  heroHighlight: varchar("hero_highlight", { length: 255 }).default("цифровые чудеса"),
+  heroDescription: text("hero_description"),
+  worksTitle: varchar("works_title", { length: 255 }).default("Мои работы"),
+  worksSubtitle: text("works_subtitle"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Additional relations
 export const projectImagesRelations = relations(projectImages, ({ one }) => ({
   project: one(projects, {
@@ -148,3 +162,11 @@ export const insertProjectImageSchema = createInsertSchema(projectImages).omit({
 });
 export type InsertProjectImage = z.infer<typeof insertProjectImageSchema>;
 export type ProjectImage = typeof projectImages.$inferSelect;
+
+export const insertSiteSettingsSchema = createInsertSchema(siteSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSiteSettings = z.infer<typeof insertSiteSettingsSchema>;
+export type SiteSettings = typeof siteSettings.$inferSelect;

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -57,8 +58,16 @@ import {
   EyeOff,
   X,
   GripVertical,
+  User,
+  Mail,
+  MessageSquare,
+  Settings,
+  Calendar,
+  FolderKanban,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import type { Project, ProjectImage, About } from "@shared/schema";
+import type { Project, ProjectImage, About, ContactMessage, SiteSettings } from "@shared/schema";
 
 const projectFormSchema = z.object({
   title: z.string().min(1, "Требуется название"),
@@ -78,6 +87,34 @@ const projectFormSchema = z.object({
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
 
+const aboutFormSchema = z.object({
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  bio: z.string().optional(),
+  photoUrl: z.string().optional(),
+  resumeUrl: z.string().optional(),
+  skills: z.string().optional(),
+  github: z.string().optional(),
+  linkedin: z.string().optional(),
+  twitter: z.string().optional(),
+  website: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+});
+
+type AboutFormData = z.infer<typeof aboutFormSchema>;
+
+const siteSettingsFormSchema = z.object({
+  greetingName: z.string().optional(),
+  greetingPrefix: z.string().optional(),
+  heroTitle: z.string().optional(),
+  heroHighlight: z.string().optional(),
+  heroDescription: z.string().optional(),
+  worksTitle: z.string().optional(),
+  worksSubtitle: z.string().optional(),
+});
+
+type SiteSettingsFormData = z.infer<typeof siteSettingsFormSchema>;
+
 export default function Admin() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -86,7 +123,8 @@ export default function Admin() {
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
   const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [projectImages, setProjectImages] = useState<ProjectImage[]>([]);
-
+  const [aboutPhotoUrl, setAboutPhotoUrl] = useState<string>("");
+  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
@@ -97,14 +135,20 @@ export default function Admin() {
     queryKey: ["/api/about"],
   });
 
-  // Track initial sync to avoid constant re-syncing
+  const { data: messages = [], isLoading: messagesLoading } = useQuery<ContactMessage[]>({
+    queryKey: ["/api/admin/messages"],
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: siteSettings } = useQuery<SiteSettings>({
+    queryKey: ["/api/site-settings"],
+  });
+
   const initialSyncRef = useRef(false);
   
-  // Sync local projects with fetched data only on initial load or when count changes
   useEffect(() => {
     if (!projects.length) return;
     
-    // Initial sync or when a project is added/deleted
     if (!initialSyncRef.current || projects.length !== localProjects.length) {
       initialSyncRef.current = true;
       setLocalProjects(projects);
@@ -129,6 +173,70 @@ export default function Admin() {
       published: true,
     },
   });
+
+  const aboutForm = useForm<AboutFormData>({
+    resolver: zodResolver(aboutFormSchema),
+    defaultValues: {
+      title: "",
+      subtitle: "",
+      bio: "",
+      photoUrl: "",
+      resumeUrl: "",
+      skills: "",
+      github: "",
+      linkedin: "",
+      twitter: "",
+      website: "",
+      email: "",
+    },
+  });
+
+  const settingsForm = useForm<SiteSettingsFormData>({
+    resolver: zodResolver(siteSettingsFormSchema),
+    defaultValues: {
+      greetingName: "",
+      greetingPrefix: "",
+      heroTitle: "",
+      heroHighlight: "",
+      heroDescription: "",
+      worksTitle: "",
+      worksSubtitle: "",
+    },
+  });
+
+  useEffect(() => {
+    if (aboutContent) {
+      const socialLinks = aboutContent.socialLinks as Record<string, string> || {};
+      aboutForm.reset({
+        title: aboutContent.title || "",
+        subtitle: aboutContent.subtitle || "",
+        bio: aboutContent.bio || "",
+        photoUrl: aboutContent.photoUrl || "",
+        resumeUrl: aboutContent.resumeUrl || "",
+        skills: aboutContent.skills?.join(", ") || "",
+        github: socialLinks.github || "",
+        linkedin: socialLinks.linkedin || "",
+        twitter: socialLinks.twitter || "",
+        website: socialLinks.website || "",
+        email: socialLinks.email || "",
+      });
+      setAboutPhotoUrl(aboutContent.photoUrl || "");
+    }
+  }, [aboutContent]);
+
+  useEffect(() => {
+    if (siteSettings) {
+      settingsForm.reset({
+        greetingName: siteSettings.greetingName || "",
+        greetingPrefix: siteSettings.greetingPrefix || "",
+        heroTitle: siteSettings.heroTitle || "",
+        heroHighlight: siteSettings.heroHighlight || "",
+        heroDescription: siteSettings.heroDescription || "",
+        worksTitle: siteSettings.worksTitle || "",
+        worksSubtitle: siteSettings.worksSubtitle || "",
+      });
+    }
+  }, [siteSettings]);
 
   const createMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
@@ -359,6 +467,124 @@ export default function Admin() {
     },
   });
 
+  const aboutMutation = useMutation({
+    mutationFn: async (data: AboutFormData) => {
+      const payload = {
+        title: data.title || null,
+        subtitle: data.subtitle || null,
+        bio: data.bio || null,
+        photoUrl: aboutPhotoUrl || data.photoUrl || null,
+        resumeUrl: data.resumeUrl || null,
+        skills: data.skills ? data.skills.split(",").map((s) => s.trim()) : [],
+        socialLinks: {
+          github: data.github || null,
+          linkedin: data.linkedin || null,
+          twitter: data.twitter || null,
+          website: data.website || null,
+          email: data.email || null,
+        },
+      };
+      return apiRequest("PUT", "/api/about", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/about"] });
+      toast({ title: "Информация обновлена" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Сессия истекла",
+          description: "Пожалуйста, войдите снова.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить информацию",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const settingsMutation = useMutation({
+    mutationFn: async (data: SiteSettingsFormData) => {
+      return apiRequest("PUT", "/api/site-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/site-settings"] });
+      toast({ title: "Настройки сайта сохранены" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Сессия истекла",
+          description: "Пожалуйста, войдите снова.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сохранить настройки",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/admin/messages/${id}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/messages"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Сессия истекла",
+          description: "Пожалуйста, войдите снова.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({
+        title: "Ошибка",
+        description: "Не удалось обновить сообщение",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/admin/messages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/messages"] });
+      toast({ title: "Сообщение удалено" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Сессия истекла",
+          description: "Пожалуйста, войдите снова.",
+          variant: "destructive",
+        });
+        window.location.href = "/login";
+        return;
+      }
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить сообщение",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = async (project: Project) => {
     setEditingProject(project);
     form.reset({
@@ -378,7 +604,6 @@ export default function Admin() {
     });
     setUploadedImageUrl(project.imageUrl || "");
     
-    // Fetch project images
     try {
       const response = await fetch(`/api/projects/${project.id}/images`);
       const images = await response.json();
@@ -404,6 +629,10 @@ export default function Admin() {
     }
   };
 
+  const handleAboutSubmit = (data: AboutFormData) => {
+    aboutMutation.mutate(data);
+  };
+
   const handleGetUploadParameters = async () => {
     const response = await fetch("/api/objects/upload", { method: "POST" });
     const { uploadURL } = await response.json();
@@ -424,6 +653,26 @@ export default function Admin() {
         toast({
           title: "Ошибка",
           description: "Не удалось обработать изображение",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleAboutPhotoUpload = async (result: any) => {
+    if (result.successful?.[0]?.uploadURL) {
+      try {
+        const response = await apiRequest("PUT", "/api/project-images", {
+          imageURL: result.successful[0].uploadURL,
+        });
+        const data = await response.json();
+        setAboutPhotoUrl(data.objectPath);
+        aboutForm.setValue("photoUrl", data.objectPath);
+        toast({ title: "Фото загружено" });
+      } catch (error) {
+        toast({
+          title: "Ошибка",
+          description: "Не удалось обработать фото",
           variant: "destructive",
         });
       }
@@ -460,19 +709,26 @@ export default function Admin() {
     }
   };
 
-  // Debounce ref for reorder mutation
+  const handleExpandMessage = (message: ContactMessage) => {
+    if (expandedMessageId === message.id) {
+      setExpandedMessageId(null);
+    } else {
+      setExpandedMessageId(message.id);
+      if (!message.isRead) {
+        markAsReadMutation.mutate(message.id);
+      }
+    }
+  };
+
   const reorderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Reorder handler with Framer Motion and debouncing
   const handleReorder = useCallback((newOrder: Project[]) => {
     setLocalProjects(newOrder);
     
-    // Clear any pending reorder request
     if (reorderTimeoutRef.current) {
       clearTimeout(reorderTimeoutRef.current);
     }
     
-    // Debounce the server update to avoid excessive API calls
     reorderTimeoutRef.current = setTimeout(() => {
       const projectOrders = newOrder.map((project, index) => ({
         id: project.id,
@@ -481,6 +737,8 @@ export default function Admin() {
       reorderMutation.mutate(projectOrders);
     }, 300);
   }, [reorderMutation]);
+
+  const unreadCount = messages.filter((m) => !m.isRead).length;
 
   if (authLoading) {
     return (
@@ -570,76 +828,636 @@ export default function Admin() {
 
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">Управление проектами</h1>
-              <p className="text-muted-foreground mt-1">
-                Добавляйте, редактируйте и упорядочивайте ваши проекты
-              </p>
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleDialogClose()}>
-              <DialogTrigger asChild>
-                <Button
-                  onClick={() => {
-                    setEditingProject(null);
-                    form.reset();
-                    setUploadedImageUrl("");
-                    setIsDialogOpen(true);
-                  }}
-                  data-testid="button-add-project"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Добавить проект
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingProject ? "Редактировать проект" : "Добавить новый проект"}
-                  </DialogTitle>
-                </DialogHeader>
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(handleSubmit)}
-                    className="space-y-6"
+          <Tabs defaultValue="projects" className="w-full">
+            <TabsList className="mb-8" data-testid="admin-tabs">
+              <TabsTrigger value="projects" data-testid="tab-projects">
+                <FolderKanban className="h-4 w-4 mr-2" />
+                Проекты
+              </TabsTrigger>
+              <TabsTrigger value="about" data-testid="tab-about">
+                <User className="h-4 w-4 mr-2" />
+                Обо мне
+              </TabsTrigger>
+              <TabsTrigger value="messages" data-testid="tab-messages" className="relative">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Сообщения
+                {unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 h-5 min-w-5 px-1.5">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="settings" data-testid="tab-settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Настройки сайта
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="projects">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Управление проектами</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Добавляйте, редактируйте и упорядочивайте ваши проекты
+                  </p>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => !open && handleDialogClose()}>
+                  <DialogTrigger asChild>
+                    <Button
+                      onClick={() => {
+                        setEditingProject(null);
+                        form.reset();
+                        setUploadedImageUrl("");
+                        setIsDialogOpen(true);
+                      }}
+                      data-testid="button-add-project"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Добавить проект
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingProject ? "Редактировать проект" : "Добавить новый проект"}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(handleSubmit)}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-4">
+                          <div className="flex flex-col gap-4 items-start">
+                            <Label>Изображение проекта</Label>
+                            {uploadedImageUrl ? (
+                              <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                                <img
+                                  src={uploadedImageUrl}
+                                  alt="Предпросмотр проекта"
+                                  className="w-full h-full object-cover"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute top-2 right-2"
+                                  onClick={() => {
+                                    setUploadedImageUrl("");
+                                    form.setValue("imageUrl", "");
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="w-full">
+                                <ObjectUploader
+                                  maxNumberOfFiles={1}
+                                  maxFileSize={10485760}
+                                  onGetUploadParameters={handleGetUploadParameters}
+                                  onComplete={handleUploadComplete}
+                                  buttonVariant="outline"
+                                  buttonClassName="w-full h-32 border-dashed"
+                                >
+                                  <div className="flex flex-col items-center gap-2">
+                                    <Image className="h-8 w-8 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">
+                                      Нажмите для загрузки
+                                    </span>
+                                  </div>
+                                </ObjectUploader>
+                              </div>
+                            )}
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Название *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Название проекта"
+                                    {...field}
+                                    data-testid="input-project-title"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="shortDescription"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Краткое описание</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Краткое описание для карточек"
+                                    {...field}
+                                    data-testid="input-short-description"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Полное описание</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Подробное описание проекта"
+                                    rows={4}
+                                    {...field}
+                                    data-testid="input-description"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="category"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Категория</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="напр., Веб-дизайн"
+                                      {...field}
+                                      data-testid="input-category"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="year"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Год</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      placeholder="2024"
+                                      {...field}
+                                      data-testid="input-year"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="tags"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Теги</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="react, typescript, дизайн (через запятую)"
+                                    {...field}
+                                    data-testid="input-tags"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="technologies"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Технологии</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="React, Node.js, PostgreSQL (через запятую)"
+                                    {...field}
+                                    data-testid="input-technologies"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="role"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Ваша роль</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="напр., Ведущий разработчик"
+                                    {...field}
+                                    data-testid="input-role"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="externalUrl"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Ссылка на проект</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="https://..."
+                                      {...field}
+                                      data-testid="input-external-url"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="githubUrl"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>GitHub URL</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="https://github.com/..."
+                                      {...field}
+                                      data-testid="input-github-url"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-6 pt-2">
+                            <FormField
+                              control={form.control}
+                              name="featured"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center gap-2">
+                                  <FormControl>
+                                    <Switch
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                      data-testid="switch-featured"
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="!mt-0">Избранный</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name="published"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center gap-2">
+                                  <FormControl>
+                                    <Switch
+                                      checked={field.value}
+                                      onCheckedChange={field.onChange}
+                                      data-testid="switch-published"
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="!mt-0">Опубликован</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          {editingProject && (
+                            <div className="pt-4 border-t">
+                              <Label className="mb-3 block">Дополнительные изображения</Label>
+                              <div className="grid grid-cols-3 gap-3 mb-3">
+                                {projectImages.map((image) => (
+                                  <div key={image.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                                    <img
+                                      src={image.imageUrl}
+                                      alt={image.caption || "Изображение галереи"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="icon"
+                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={() => deleteProjectImageMutation.mutate(image.id)}
+                                      data-testid={`button-delete-gallery-image-${image.id}`}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                              <ObjectUploader
+                                maxNumberOfFiles={1}
+                                maxFileSize={10485760}
+                                onGetUploadParameters={handleGetUploadParameters}
+                                onComplete={handleGalleryUploadComplete}
+                                buttonVariant="outline"
+                                buttonClassName="w-full h-20 border-dashed"
+                              >
+                                <div className="flex flex-col items-center gap-1">
+                                  <Plus className="h-5 w-5 text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">
+                                    Добавить фото
+                                  </span>
+                                </div>
+                              </ObjectUploader>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDialogClose}
+                            data-testid="button-cancel"
+                          >
+                            Отмена
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={
+                              createMutation.isPending || updateMutation.isPending
+                            }
+                            data-testid="button-save-project"
+                          >
+                            {(createMutation.isPending ||
+                              updateMutation.isPending) && (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            )}
+                            {editingProject ? "Сохранить" : "Создать"}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : localProjects.length === 0 ? (
+                <Card className="py-20">
+                  <CardContent className="text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+                      <Sparkles className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">Пока нет проектов</h3>
+                    <p className="text-muted-foreground mb-6">
+                      Добавьте свой первый проект
+                    </p>
+                    <Button onClick={() => setIsDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Добавить первый проект
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <GripVertical className="h-4 w-4" />
+                    Перетащите карточку для изменения порядка
+                  </div>
+                  <AnimatePresence mode="popLayout">
+                  <Reorder.Group 
+                    axis="y" 
+                    values={localProjects} 
+                    onReorder={handleReorder}
+                    className="flex flex-col gap-3"
+                    layoutScroll
                   >
-                    <div className="space-y-4">
+                    {localProjects.map((project) => (
+                      <Reorder.Item 
+                        key={project.id} 
+                        value={project}
+                        id={project.id}
+                        layout
+                        className="relative cursor-grab active:cursor-grabbing select-none touch-none list-none"
+                        style={{ listStyle: 'none' }}
+                        whileDrag={{
+                          scale: 1.03,
+                          boxShadow: "0 25px 50px -12px rgba(139, 92, 246, 0.35)",
+                          zIndex: 50,
+                          cursor: "grabbing",
+                        }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{
+                          layout: { type: "spring", stiffness: 350, damping: 25 },
+                          opacity: { duration: 0.2 }
+                        }}
+                      >
+                        <Card 
+                          data-testid={`admin-card-project-${project.id}`}
+                          className="bg-card hover:border-primary/50 transition-colors pointer-events-auto"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-4">
+                              <div 
+                                className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-grab active:cursor-grabbing"
+                                data-testid={`drag-handle-${project.id}`}
+                              >
+                                <GripVertical className="h-5 w-5" />
+                              </div>
+                              <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                                {project.imageUrl ? (
+                                  <img
+                                    src={project.imageUrl}
+                                    alt={project.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xl font-bold">
+                                    {project.title.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold truncate">
+                                    {project.title}
+                                  </h3>
+                                  {project.featured && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Избранный
+                                    </Badge>
+                                  )}
+                                  {!project.published && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Черновик
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {project.shortDescription || project.description}
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {project.tags?.slice(0, 3).map((tag) => (
+                                    <Badge key={tag} variant="outline" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePublishMutation.mutate({
+                                      id: project.id,
+                                      published: !project.published,
+                                    });
+                                  }}
+                                  data-testid={`button-toggle-publish-${project.id}`}
+                                >
+                                  {project.published ? (
+                                    <Eye className="h-4 w-4" />
+                                  ) : (
+                                    <EyeOff className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(project);
+                                  }}
+                                  data-testid={`button-edit-${project.id}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => e.stopPropagation()}
+                                      data-testid={`button-delete-${project.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Удалить проект</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Вы уверены, что хотите удалить «{project.title}»?
+                                        Это действие нельзя отменить.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteMutation.mutate(project.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        data-testid={`button-confirm-delete-${project.id}`}
+                                      >
+                                        Удалить
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Reorder.Item>
+                    ))}
+                  </Reorder.Group>
+                  </AnimatePresence>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="about">
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold">Обо мне</h1>
+                <p className="text-muted-foreground mt-1">
+                  Редактируйте информацию о себе
+                </p>
+              </div>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <Form {...aboutForm}>
+                    <form
+                      onSubmit={aboutForm.handleSubmit(handleAboutSubmit)}
+                      className="space-y-6"
+                    >
                       <div className="flex flex-col gap-4 items-start">
-                        <Label>Изображение проекта</Label>
-                        {uploadedImageUrl ? (
-                          <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-muted">
+                        <Label>Фото профиля</Label>
+                        {aboutPhotoUrl ? (
+                          <div className="relative w-32 h-32 rounded-full overflow-hidden bg-muted">
                             <img
-                              src={uploadedImageUrl}
-                              alt="Предпросмотр проекта"
+                              src={aboutPhotoUrl}
+                              alt="Фото профиля"
                               className="w-full h-full object-cover"
                             />
                             <Button
                               type="button"
                               variant="destructive"
                               size="icon"
-                              className="absolute top-2 right-2"
+                              className="absolute top-0 right-0"
                               onClick={() => {
-                                setUploadedImageUrl("");
-                                form.setValue("imageUrl", "");
+                                setAboutPhotoUrl("");
+                                aboutForm.setValue("photoUrl", "");
                               }}
+                              data-testid="button-remove-about-photo"
                             >
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
                         ) : (
-                          <div className="w-full">
+                          <div className="w-32">
                             <ObjectUploader
                               maxNumberOfFiles={1}
                               maxFileSize={10485760}
                               onGetUploadParameters={handleGetUploadParameters}
-                              onComplete={handleUploadComplete}
+                              onComplete={handleAboutPhotoUpload}
                               buttonVariant="outline"
-                              buttonClassName="w-full h-32 border-dashed"
+                              buttonClassName="w-32 h-32 rounded-full border-dashed"
                             >
                               <div className="flex flex-col items-center gap-2">
-                                <Image className="h-8 w-8 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  Нажмите для загрузки
+                                <User className="h-8 w-8 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground text-center">
+                                  Загрузить фото
                                 </span>
                               </div>
                             </ObjectUploader>
@@ -647,111 +1465,56 @@ export default function Admin() {
                         )}
                       </div>
 
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Название *</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Название проекта"
-                                {...field}
-                                data-testid="input-project-title"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={aboutForm.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Заголовок</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Ваше имя"
+                                  {...field}
+                                  data-testid="input-about-title"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={aboutForm.control}
+                          name="subtitle"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Подзаголовок</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Ваша должность или специализация"
+                                  {...field}
+                                  data-testid="input-about-subtitle"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
                       <FormField
-                        control={form.control}
-                        name="shortDescription"
+                        control={aboutForm.control}
+                        name="bio"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Краткое описание</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Краткое описание для карточек"
-                                {...field}
-                                data-testid="input-short-description"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Полное описание</FormLabel>
+                            <FormLabel>Биография</FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Подробное описание проекта"
-                                rows={4}
+                                placeholder="Расскажите о себе..."
+                                rows={5}
                                 {...field}
-                                data-testid="input-description"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="category"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Категория</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="напр., Веб-дизайн"
-                                  {...field}
-                                  data-testid="input-category"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="year"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Год</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  placeholder="2024"
-                                  {...field}
-                                  data-testid="input-year"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="tags"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Теги</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="react, typescript, дизайн (через запятую)"
-                                {...field}
-                                data-testid="input-tags"
+                                data-testid="input-about-bio"
                               />
                             </FormControl>
                             <FormMessage />
@@ -760,16 +1523,16 @@ export default function Admin() {
                       />
 
                       <FormField
-                        control={form.control}
-                        name="technologies"
+                        control={aboutForm.control}
+                        name="resumeUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Технологии</FormLabel>
+                            <FormLabel>Ссылка на резюме</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="React, Node.js, PostgreSQL (через запятую)"
+                                placeholder="https://..."
                                 {...field}
-                                data-testid="input-technologies"
+                                data-testid="input-about-resume"
                               />
                             </FormControl>
                             <FormMessage />
@@ -778,16 +1541,16 @@ export default function Admin() {
                       />
 
                       <FormField
-                        control={form.control}
-                        name="role"
+                        control={aboutForm.control}
+                        name="skills"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ваша роль</FormLabel>
+                            <FormLabel>Навыки</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="напр., Ведущий разработчик"
+                                placeholder="React, TypeScript, Node.js (через запятую)"
                                 {...field}
-                                data-testid="input-role"
+                                data-testid="input-about-skills"
                               />
                             </FormControl>
                             <FormMessage />
@@ -795,259 +1558,187 @@ export default function Admin() {
                         )}
                       />
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="externalUrl"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Ссылка на проект</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="https://..."
-                                  {...field}
-                                  data-testid="input-external-url"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <div className="pt-4 border-t">
+                        <h3 className="font-semibold mb-4">Социальные сети</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={aboutForm.control}
+                            name="github"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>GitHub</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="https://github.com/username"
+                                    {...field}
+                                    data-testid="input-about-github"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                        <FormField
-                          control={form.control}
-                          name="githubUrl"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>GitHub URL</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="https://github.com/..."
-                                  {...field}
-                                  data-testid="input-github-url"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                          <FormField
+                            control={aboutForm.control}
+                            name="linkedin"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>LinkedIn</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="https://linkedin.com/in/username"
+                                    {...field}
+                                    data-testid="input-about-linkedin"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                      <div className="flex items-center gap-6 pt-2">
-                        <FormField
-                          control={form.control}
-                          name="featured"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center gap-2">
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                  data-testid="switch-featured"
-                                />
-                              </FormControl>
-                              <FormLabel className="!mt-0">Избранный</FormLabel>
-                            </FormItem>
-                          )}
-                        />
+                          <FormField
+                            control={aboutForm.control}
+                            name="twitter"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Twitter</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="https://twitter.com/username"
+                                    {...field}
+                                    data-testid="input-about-twitter"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                        <FormField
-                          control={form.control}
-                          name="published"
-                          render={({ field }) => (
-                            <FormItem className="flex items-center gap-2">
-                              <FormControl>
-                                <Switch
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                  data-testid="switch-published"
-                                />
-                              </FormControl>
-                              <FormLabel className="!mt-0">Опубликован</FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                          <FormField
+                            control={aboutForm.control}
+                            name="website"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Веб-сайт</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="https://yourwebsite.com"
+                                    {...field}
+                                    data-testid="input-about-website"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                      {editingProject && (
-                        <div className="pt-4 border-t">
-                          <Label className="mb-3 block">Дополнительные изображения</Label>
-                          <div className="grid grid-cols-3 gap-3 mb-3">
-                            {projectImages.map((image) => (
-                              <div key={image.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
-                                <img
-                                  src={image.imageUrl}
-                                  alt={image.caption || "Изображение галереи"}
-                                  className="w-full h-full object-cover"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="icon"
-                                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => deleteProjectImageMutation.mutate(image.id)}
-                                  data-testid={`button-delete-gallery-image-${image.id}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                          <ObjectUploader
-                            maxNumberOfFiles={1}
-                            maxFileSize={10485760}
-                            onGetUploadParameters={handleGetUploadParameters}
-                            onComplete={handleGalleryUploadComplete}
-                            buttonVariant="outline"
-                            buttonClassName="w-full h-20 border-dashed"
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <Plus className="h-5 w-5 text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">
-                                Добавить фото
-                              </span>
-                            </div>
-                          </ObjectUploader>
+                          <FormField
+                            control={aboutForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="email@example.com"
+                                    type="email"
+                                    {...field}
+                                    data-testid="input-about-email"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleDialogClose}
-                        data-testid="button-cancel"
-                      >
-                        Отмена
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={
-                          createMutation.isPending || updateMutation.isPending
-                        }
-                        data-testid="button-save-project"
-                      >
-                        {(createMutation.isPending ||
-                          updateMutation.isPending) && (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        )}
-                        {editingProject ? "Сохранить" : "Создать"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          disabled={aboutMutation.isPending}
+                          data-testid="button-save-about"
+                        >
+                          {aboutMutation.isPending && (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          )}
+                          Сохранить
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : localProjects.length === 0 ? (
-            <Card className="py-20">
-              <CardContent className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-                  <Sparkles className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Пока нет проектов</h3>
-                <p className="text-muted-foreground mb-6">
-                  Добавьте свой первый проект
+            <TabsContent value="messages">
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold">Сообщения</h1>
+                <p className="text-muted-foreground mt-1">
+                  Просмотр сообщений от посетителей
                 </p>
-                <Button onClick={() => setIsDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Добавить первый проект
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <GripVertical className="h-4 w-4" />
-                Перетащите карточку для изменения порядка
               </div>
-              <AnimatePresence mode="popLayout">
-              <Reorder.Group 
-                axis="y" 
-                values={localProjects} 
-                onReorder={handleReorder}
-                className="flex flex-col gap-3"
-                layoutScroll
-              >
-                {localProjects.map((project) => (
-                  <Reorder.Item 
-                    key={project.id} 
-                    value={project}
-                    id={project.id}
-                    layout
-                    className="relative cursor-grab active:cursor-grabbing select-none touch-none list-none"
-                    style={{ listStyle: 'none' }}
-                    whileDrag={{
-                      scale: 1.03,
-                      boxShadow: "0 25px 50px -12px rgba(139, 92, 246, 0.35)",
-                      zIndex: 50,
-                      cursor: "grabbing",
-                    }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{
-                      layout: { type: "spring", stiffness: 350, damping: 25 },
-                      opacity: { duration: 0.2 }
-                    }}
-                  >
+
+              {messagesLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : messages.length === 0 ? (
+                <Card className="py-20">
+                  <CardContent className="text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+                      <Mail className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">Нет сообщений</h3>
+                    <p className="text-muted-foreground">
+                      Когда посетители отправят сообщения, они появятся здесь
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {messages.map((message) => (
                     <Card 
-                      data-testid={`admin-card-project-${project.id}`}
-                      className="bg-card hover:border-primary/50 transition-colors pointer-events-auto"
+                      key={message.id} 
+                      className={`cursor-pointer transition-colors ${!message.isRead ? 'border-primary/50 bg-primary/5' : ''}`}
+                      data-testid={`message-card-${message.id}`}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div 
-                            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-grab active:cursor-grabbing"
-                            data-testid={`drag-handle-${project.id}`}
-                          >
-                            <GripVertical className="h-5 w-5" />
-                          </div>
-                          <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                            {project.imageUrl ? (
-                              <img
-                                src={project.imageUrl}
-                                alt={project.title}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xl font-bold">
-                                {project.title.charAt(0)}
+                        <div 
+                          className="flex items-start justify-between gap-4"
+                          onClick={() => handleExpandMessage(message)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-semibold" data-testid={`message-name-${message.id}`}>
+                                {message.name}
+                              </span>
+                              {!message.isRead && (
+                                <Badge variant="destructive" className="text-xs" data-testid={`badge-new-${message.id}`}>
+                                  Новое
+                                </Badge>
+                              )}
+                              <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {message.createdAt ? new Date(message.createdAt).toLocaleDateString('ru-RU', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                }) : ''}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground mb-1" data-testid={`message-email-${message.id}`}>
+                              {message.email}
+                            </div>
+                            {message.subject && (
+                              <div className="font-medium mb-1" data-testid={`message-subject-${message.id}`}>
+                                {message.subject}
                               </div>
                             )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold truncate">
-                                {project.title}
-                              </h3>
-                              {project.featured && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Избранный
-                                </Badge>
-                              )}
-                              {!project.published && (
-                                <Badge variant="outline" className="text-xs">
-                                  Черновик
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {project.shortDescription || project.description}
+                            <p className={`text-sm ${expandedMessageId === message.id ? '' : 'line-clamp-2'}`} data-testid={`message-text-${message.id}`}>
+                              {message.message}
                             </p>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {project.tags?.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <Button
@@ -1055,29 +1746,15 @@ export default function Admin() {
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                togglePublishMutation.mutate({
-                                  id: project.id,
-                                  published: !project.published,
-                                });
+                                handleExpandMessage(message);
                               }}
-                              data-testid={`button-toggle-publish-${project.id}`}
+                              data-testid={`button-expand-${message.id}`}
                             >
-                              {project.published ? (
-                                <Eye className="h-4 w-4" />
+                              {expandedMessageId === message.id ? (
+                                <ChevronUp className="h-4 w-4" />
                               ) : (
-                                <EyeOff className="h-4 w-4" />
+                                <ChevronDown className="h-4 w-4" />
                               )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(project);
-                              }}
-                              data-testid={`button-edit-${project.id}`}
-                            >
-                              <Pencil className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -1085,25 +1762,25 @@ export default function Admin() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={(e) => e.stopPropagation()}
-                                  data-testid={`button-delete-${project.id}`}
+                                  data-testid={`button-delete-message-${message.id}`}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить проект</AlertDialogTitle>
+                                  <AlertDialogTitle>Удалить сообщение</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Вы уверены, что хотите удалить «{project.title}»?
+                                    Вы уверены, что хотите удалить сообщение от {message.name}?
                                     Это действие нельзя отменить.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Отмена</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => deleteMutation.mutate(project.id)}
+                                    onClick={() => deleteMessageMutation.mutate(message.id)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    data-testid={`button-confirm-delete-${project.id}`}
+                                    data-testid={`button-confirm-delete-message-${message.id}`}
                                   >
                                     Удалить
                                   </AlertDialogAction>
@@ -1114,12 +1791,162 @@ export default function Admin() {
                         </div>
                       </CardContent>
                     </Card>
-                  </Reorder.Item>
-                ))}
-              </Reorder.Group>
-              </AnimatePresence>
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold">Настройки сайта</h1>
+                <p className="text-muted-foreground mt-1">
+                  Управление текстом главной страницы и приветствием
+                </p>
+              </div>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <Form {...settingsForm}>
+                    <form onSubmit={settingsForm.handleSubmit((data) => settingsMutation.mutate(data))} className="space-y-6">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <MessageSquare className="h-5 w-5 text-primary" />
+                          Приветствие
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={settingsForm.control}
+                            name="greetingPrefix"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Префикс приветствия</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Привет, я" {...field} data-testid="input-greeting-prefix" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={settingsForm.control}
+                            name="greetingName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Имя</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Filadelfi" {...field} data-testid="input-greeting-name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-primary" />
+                          Заголовок Hero-секции
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={settingsForm.control}
+                            name="heroTitle"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Основной текст</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Создаю" {...field} data-testid="input-hero-title" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={settingsForm.control}
+                            name="heroHighlight"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Выделенный текст (градиент)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="цифровые чудеса" {...field} data-testid="input-hero-highlight" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <FormField
+                          control={settingsForm.control}
+                          name="heroDescription"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Описание под заголовком</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Дизайнер и разработчик. Превращаю идеи в красивые цифровые продукты." 
+                                  rows={3}
+                                  {...field} 
+                                  data-testid="input-hero-description" 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <FolderKanban className="h-5 w-5 text-primary" />
+                          Секция работ
+                        </h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={settingsForm.control}
+                            name="worksTitle"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Заголовок секции</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Мои работы" {...field} data-testid="input-works-title" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={settingsForm.control}
+                            name="worksSubtitle"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Подзаголовок</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Избранные проекты, над которыми я работал" {...field} data-testid="input-works-subtitle" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <Button type="submit" disabled={settingsMutation.isPending} data-testid="button-save-settings">
+                        {settingsMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Сохранение...
+                          </>
+                        ) : (
+                          "Сохранить настройки"
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

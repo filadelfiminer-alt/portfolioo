@@ -6,7 +6,7 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ArrowRight, ArrowDown, Code2, Palette, Lightbulb, Sparkles, Star, Heart, ExternalLink, Github, Mail, MessageCircle } from "lucide-react";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
-import type { Project, About } from "@shared/schema";
+import type { Project, About, SiteSettings } from "@shared/schema";
 
 export default function Landing() {
   const [secretClicks, setSecretClicks] = useState(0);
@@ -22,6 +22,10 @@ export default function Landing() {
 
   const { data: aboutContent } = useQuery<About>({
     queryKey: ["/api/about"],
+  });
+
+  const { data: siteSettings } = useQuery<SiteSettings>({
+    queryKey: ["/api/site-settings"],
   });
 
   const publishedProjects = projects.filter(p => p.published);
@@ -290,9 +294,9 @@ export default function Landing() {
                       <div className="flex flex-col items-start">
                         <span className="text-[10px] text-muted-foreground mb-0.5">сейчас</span>
                         <p className="font-medium text-foreground">
-                          Привет, я{" "}
+                          {siteSettings?.greetingPrefix || "Привет, я"}{" "}
                           <span className="font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
-                            Filadelfi
+                            {siteSettings?.greetingName || "Filadelfi"}
                           </span>
                         </p>
                       </div>
@@ -348,7 +352,7 @@ export default function Landing() {
                 variants={itemVariants}
                 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 leading-[1.1] tracking-tight"
               >
-                <span className="block text-foreground">Создаю</span>
+                <span className="block text-foreground">{siteSettings?.heroTitle || "Создаю"}</span>
                 <motion.span 
                   className="block mt-2"
                   animate={{ 
@@ -362,7 +366,7 @@ export default function Landing() {
                     WebkitTextFillColor: "transparent",
                   }}
                 >
-                  цифровые чудеса
+                  {siteSettings?.heroHighlight || "цифровые чудеса"}
                 </motion.span>
               </motion.h1>
 
@@ -371,7 +375,7 @@ export default function Landing() {
                 variants={itemVariants}
                 className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed"
               >
-                {aboutContent?.bio || "Дизайнер и разработчик. Превращаю идеи в красивые цифровые продукты."}
+                {siteSettings?.heroDescription || aboutContent?.bio || "Дизайнер и разработчик. Превращаю идеи в красивые цифровые продукты."}
               </motion.p>
 
               {/* CTA Buttons */}
@@ -479,13 +483,28 @@ export default function Landing() {
               <h2 
                 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6"
               >
-                Мои{" "}
-                <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
-                  работы
-                </span>
+                {(() => {
+                  const title = siteSettings?.worksTitle || "Мои работы";
+                  const words = title.split(" ");
+                  if (words.length >= 2) {
+                    return (
+                      <>
+                        {words.slice(0, -1).join(" ")}{" "}
+                        <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
+                          {words[words.length - 1]}
+                        </span>
+                      </>
+                    );
+                  }
+                  return (
+                    <span className="bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
+                      {title}
+                    </span>
+                  );
+                })()}
               </h2>
               <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                Избранные проекты, над которыми я работал
+                {siteSettings?.worksSubtitle || "Избранные проекты, над которыми я работал"}
               </p>
             </motion.div>
 
