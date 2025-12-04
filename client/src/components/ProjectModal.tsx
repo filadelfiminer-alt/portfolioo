@@ -1,4 +1,5 @@
-import type { Project } from "@shared/schema";
+import { useState, useEffect } from "react";
+import type { Project, ProjectImage } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Github, X } from "lucide-react";
+import { ExternalLink, Github, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ProjectModalProps {
@@ -17,7 +18,45 @@ interface ProjectModalProps {
 }
 
 export function ProjectModal({ project, isOpen, onClose }: ProjectModalProps) {
+  const [galleryImages, setGalleryImages] = useState<ProjectImage[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Fetch gallery images when project changes
+  useEffect(() => {
+    if (project?.id) {
+      fetch(`/api/projects/${project.id}/images`)
+        .then((res) => res.json())
+        .then((images) => {
+          setGalleryImages(images);
+          setCurrentImageIndex(0);
+        })
+        .catch((error) => {
+          console.error("Error fetching gallery images:", error);
+          setGalleryImages([]);
+        });
+    } else {
+      setGalleryImages([]);
+      setCurrentImageIndex(0);
+    }
+  }, [project?.id]);
+
   if (!project) return null;
+
+  // Combine main image with gallery images for a unified carousel
+  const allImages = [
+    ...(project.imageUrl ? [{ id: "main", imageUrl: project.imageUrl, caption: null }] : []),
+    ...galleryImages,
+  ];
+
+  const hasMultipleImages = allImages.length > 1;
+
+  const goToPrevious = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -40,13 +79,51 @@ export function ProjectModal({ project, isOpen, onClose }: ProjectModalProps) {
                 <X className="h-4 w-4" />
               </Button>
 
-              {project.imageUrl && (
-                <div className="aspect-video w-full overflow-hidden">
+              {allImages.length > 0 && (
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
                   <img
-                    src={project.imageUrl}
+                    src={allImages[currentImageIndex]?.imageUrl}
                     alt={project.title}
                     className="h-full w-full object-cover"
                   />
+                  
+                  {hasMultipleImages && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                        onClick={goToPrevious}
+                        data-testid="button-prev-image"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm"
+                        onClick={goToNext}
+                        data-testid="button-next-image"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
+                      
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        {allImages.map((_, index) => (
+                          <button
+                            key={index}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentImageIndex
+                                ? "bg-white"
+                                : "bg-white/40 hover:bg-white/60"
+                            }`}
+                            onClick={() => setCurrentImageIndex(index)}
+                            data-testid={`button-image-dot-${index}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

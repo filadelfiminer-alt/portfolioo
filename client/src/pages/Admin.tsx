@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,8 +55,9 @@ import {
   Eye,
   EyeOff,
   X,
+  GripVertical,
 } from "lucide-react";
-import type { Project } from "@shared/schema";
+import type { Project, ProjectImage } from "@shared/schema";
 
 const projectFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -82,12 +83,20 @@ export default function Admin() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
+  const [draggedProject, setDraggedProject] = useState<string | null>(null);
+  const [localProjects, setLocalProjects] = useState<Project[]>([]);
+  const [projectImages, setProjectImages] = useState<ProjectImage[]>([]);
 
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
     enabled: !!user?.isAdmin,
   });
+
+  // Sync local projects with fetched data
+  useEffect(() => {
+    setLocalProjects(projects);
+  }, [projects]);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -242,7 +251,105 @@ export default function Admin() {
     },
   });
 
-  const handleEdit = (project: Project) => {
+  const reorderMutation = useMutation({
+    mutationFn: async (projectOrders: { id: string; sortOrder: number }[]) => {
+      return apiRequest("PATCH", "/api/projects/reorder", { projectOrders });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/projects"] });
+      toast({ title: "Projects reordered successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Session expired",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        window.location.href = "/api/login";
+        return;
+      }
+      // Revert local state on error
+      setLocalProjects(projects);
+      toast({
+        title: "Error",
+        description: "Failed to reorder projects",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addProjectImageMutation = useMutation({
+    mutationFn: async ({ projectId, imageUrl, caption }: { projectId: string; imageUrl: string; caption?: string }) => {
+      return apiRequest("POST", `/api/projects/${projectId}/images`, { imageUrl, caption });
+    },
+    onSuccess: async () => {
+      if (editingProject) {
+        // Refetch project images
+        try {
+          const response = await fetch(`/api/projects/${editingProject.id}/images`);
+          const images = await response.json();
+          setProjectImages(images);
+        } catch (error) {
+          console.error("Error fetching project images:", error);
+        }
+      }
+      toast({ title: "Image added successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Session expired",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        window.location.href = "/api/login";
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to add image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteProjectImageMutation = useMutation({
+    mutationFn: async (imageId: string) => {
+      return apiRequest("DELETE", `/api/project-images/${imageId}`);
+    },
+    onSuccess: async () => {
+      if (editingProject) {
+        // Refetch project images
+        try {
+          const response = await fetch(`/api/projects/${editingProject.id}/images`);
+          const images = await response.json();
+          setProjectImages(images);
+        } catch (error) {
+          console.error("Error fetching project images:", error);
+        }
+      }
+      toast({ title: "Image deleted successfully" });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Session expired",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
+        window.location.href = "/api/login";
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = async (project: Project) => {
     setEditingProject(project);
     form.reset({
       title: project.title,
@@ -260,6 +367,17 @@ export default function Admin() {
       published: project.published ?? true,
     });
     setUploadedImageUrl(project.imageUrl || "");
+    
+    // Fetch project images
+    try {
+      const response = await fetch(`/api/projects/${project.id}/images`);
+      const images = await response.json();
+      setProjectImages(images);
+    } catch (error) {
+      console.error("Error fetching project images:", error);
+      setProjectImages([]);
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -307,7 +425,77 @@ export default function Admin() {
     setEditingProject(null);
     form.reset();
     setUploadedImageUrl("");
+    setProjectImages([]);
   };
+
+  // Handler for adding gallery images
+  const handleGalleryUploadComplete = async (result: any) => {
+    if (result.successful?.[0]?.uploadURL && editingProject) {
+      try {
+        const response = await apiRequest("PUT", "/api/project-images", {
+          imageURL: result.successful[0].uploadURL,
+        });
+        const data = await response.json();
+        
+        // Add the image to the project
+        addProjectImageMutation.mutate({
+          projectId: editingProject.id,
+          imageUrl: data.objectPath,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to process uploaded image",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((projectId: string) => {
+    setDraggedProject(projectId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback((targetProjectId: string) => {
+    if (!draggedProject || draggedProject === targetProjectId) {
+      setDraggedProject(null);
+      return;
+    }
+
+    const draggedIndex = localProjects.findIndex(p => p.id === draggedProject);
+    const targetIndex = localProjects.findIndex(p => p.id === targetProjectId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedProject(null);
+      return;
+    }
+
+    // Create new array with reordered projects
+    const newProjects = [...localProjects];
+    const [removed] = newProjects.splice(draggedIndex, 1);
+    newProjects.splice(targetIndex, 0, removed);
+
+    // Update local state immediately for smooth UX
+    setLocalProjects(newProjects);
+    setDraggedProject(null);
+
+    // Send reorder request to server
+    const projectOrders = newProjects.map((project, index) => ({
+      id: project.id,
+      sortOrder: newProjects.length - index, // Higher number = higher priority
+    }));
+
+    reorderMutation.mutate(projectOrders);
+  }, [draggedProject, localProjects, reorderMutation]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedProject(null);
+  }, []);
 
   if (authLoading) {
     return (
@@ -371,22 +559,20 @@ export default function Admin() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/">
-              <a className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                <span className="font-bold text-xl">Portfolio</span>
-              </a>
+            <Link href="/" className="flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="font-bold text-xl">Portfolio</span>
             </Link>
             <Badge variant="secondary">Admin</Badge>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <ThemeToggle />
-            <Button variant="outline" size="sm" asChild data-testid="button-view-portfolio">
-              <Link href="/gallery">
+            <Link href="/gallery">
+              <Button variant="outline" size="sm" data-testid="button-view-portfolio">
                 <Home className="h-4 w-4 mr-2" />
                 View Portfolio
-              </Link>
-            </Button>
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" asChild data-testid="button-logout-admin">
               <a href="/api/logout">
                 <LogOut className="h-4 w-4 mr-2" />
@@ -697,6 +883,48 @@ export default function Admin() {
                           )}
                         />
                       </div>
+
+                      {editingProject && (
+                        <div className="pt-4 border-t">
+                          <Label className="mb-3 block">Additional Gallery Images</Label>
+                          <div className="grid grid-cols-3 gap-3 mb-3">
+                            {projectImages.map((image) => (
+                              <div key={image.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted group">
+                                <img
+                                  src={image.imageUrl}
+                                  alt={image.caption || "Gallery image"}
+                                  className="w-full h-full object-cover"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => deleteProjectImageMutation.mutate(image.id)}
+                                  data-testid={`button-delete-gallery-image-${image.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <ObjectUploader
+                            maxNumberOfFiles={1}
+                            maxFileSize={10485760}
+                            onGetUploadParameters={handleGetUploadParameters}
+                            onComplete={handleGalleryUploadComplete}
+                            buttonVariant="outline"
+                            buttonClassName="w-full h-20 border-dashed"
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <Plus className="h-5 w-5 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                Add gallery image
+                              </span>
+                            </div>
+                          </ObjectUploader>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex justify-end gap-3">
@@ -732,7 +960,7 @@ export default function Admin() {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : projects.length === 0 ? (
+          ) : localProjects.length === 0 ? (
             <Card className="py-20">
               <CardContent className="text-center">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
@@ -750,10 +978,33 @@ export default function Admin() {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {projects.map((project) => (
-                <Card key={project.id} data-testid={`admin-card-project-${project.id}`}>
+              <div className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                <GripVertical className="h-4 w-4" />
+                Drag to reorder projects
+              </div>
+              {localProjects.map((project) => (
+                <Card 
+                  key={project.id} 
+                  data-testid={`admin-card-project-${project.id}`}
+                  draggable
+                  onDragStart={() => handleDragStart(project.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(project.id)}
+                  onDragEnd={handleDragEnd}
+                  className={`cursor-move transition-all ${
+                    draggedProject === project.id 
+                      ? 'opacity-50 border-primary' 
+                      : 'hover:border-primary/50'
+                  }`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
+                      <div 
+                        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground"
+                        data-testid={`drag-handle-${project.id}`}
+                      >
+                        <GripVertical className="h-5 w-5" />
+                      </div>
                       <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                         {project.imageUrl ? (
                           <img
