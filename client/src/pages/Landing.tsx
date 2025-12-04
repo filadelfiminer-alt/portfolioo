@@ -3,14 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
-import { ArrowRight, ArrowDown, Code2, Palette, Lightbulb, Sparkles, Star, Heart, ExternalLink, Github, Mail } from "lucide-react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { ArrowRight, ArrowDown, Code2, Palette, Lightbulb, Sparkles, Star, Heart, ExternalLink, Github, Mail, MessageCircle } from "lucide-react";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import type { Project, About } from "@shared/schema";
 
 export default function Landing() {
   const [secretClicks, setSecretClicks] = useState(0);
   const [showSecret, setShowSecret] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
@@ -24,6 +25,62 @@ export default function Landing() {
   });
 
   const publishedProjects = projects.filter(p => p.published);
+
+  // Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Create a pleasant notification tone
+      const oscillator1 = audioContext.createOscillator();
+      const oscillator2 = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator1.connect(gainNode);
+      oscillator2.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Two-tone notification (like iMessage)
+      oscillator1.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+      oscillator1.frequency.setValueAtTime(1046.5, audioContext.currentTime + 0.1); // C6
+      oscillator2.frequency.setValueAtTime(1318.5, audioContext.currentTime); // E6
+      oscillator2.frequency.setValueAtTime(1568, audioContext.currentTime + 0.1); // G6
+      
+      oscillator1.type = 'sine';
+      oscillator2.type = 'sine';
+      
+      // Smooth volume envelope
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+      gainNode.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 0.12);
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.25);
+      
+      oscillator1.start(audioContext.currentTime);
+      oscillator2.start(audioContext.currentTime);
+      oscillator1.stop(audioContext.currentTime + 0.25);
+      oscillator2.stop(audioContext.currentTime + 0.25);
+    } catch (e) {
+      // Audio not supported
+    }
+  };
+
+  // Show greeting notification on load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowGreeting(true);
+      playNotificationSound();
+    }, 800);
+    
+    const hideTimer = setTimeout(() => {
+      setShowGreeting(false);
+    }, 5000);
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(hideTimer);
+    };
+  }, []);
 
   useEffect(() => {
     if (secretClicks >= 7) {
@@ -68,6 +125,40 @@ export default function Landing() {
   return (
     <div className="min-h-screen relative overflow-x-hidden">
       <AnimatedBackground />
+      
+      {/* Greeting Notification */}
+      <AnimatePresence>
+        {showGreeting && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 400, 
+              damping: 25 
+            }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100]"
+          >
+            <div className="flex items-start gap-3 px-5 py-4 rounded-2xl bg-card/95 backdrop-blur-xl border border-violet-500/30 shadow-2xl shadow-violet-500/20">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground mb-1">Новое сообщение</span>
+                <p className="font-medium text-foreground">
+                  Привет, я <span className="font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">Filadelfi</span>
+                </p>
+              </div>
+              <motion.div
+                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-violet-500"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Secret Easter Egg */}
       {showSecret && (
